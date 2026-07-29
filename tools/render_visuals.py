@@ -22,6 +22,12 @@ from xml.sax.saxutils import escape, quoteattr
 ROOT: Final = Path(__file__).resolve().parents[1]
 DEFAULT_SOURCE_DIRECTORY: Final = ROOT / "docs" / "visuals" / "sources"
 DEFAULT_OUTPUT_DIRECTORY: Final = ROOT / "docs" / "visuals"
+COLOCATED_SVG_NAMES: Final = frozenset(
+    {
+        "installed-wheel-history-tombstone.svg",
+        "installed-wheel-write-replay.svg",
+    }
+)
 
 MAX_SOURCE_BYTES: Final = 65_536
 MAX_SOURCE_FILES: Final = 12
@@ -1860,8 +1866,13 @@ def _check_outputs(outputs: dict[str, bytes], output_directory: Path) -> bool:
         return False
     try:
         expected_names = frozenset(f"{slug}.svg" for slug in outputs)
-        actual_names = _bounded_svg_names(directory_fd, maximum=len(expected_names))
-        if actual_names != expected_names:
+        allowed_names = (
+            expected_names | COLOCATED_SVG_NAMES
+            if output_directory == DEFAULT_OUTPUT_DIRECTORY
+            else expected_names
+        )
+        actual_names = _bounded_svg_names(directory_fd, maximum=len(allowed_names))
+        if actual_names != allowed_names:
             return False
         matches = all(
             _bounded_output_matches(
@@ -1871,8 +1882,8 @@ def _check_outputs(outputs: dict[str, bytes], output_directory: Path) -> bool:
             )
             for slug, payload in outputs.items()
         )
-        final_names = _bounded_svg_names(directory_fd, maximum=len(expected_names))
-        return matches and final_names == expected_names
+        final_names = _bounded_svg_names(directory_fd, maximum=len(allowed_names))
+        return matches and final_names == allowed_names
     finally:
         os.close(directory_fd)
 

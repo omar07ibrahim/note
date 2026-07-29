@@ -157,6 +157,44 @@ DATA_DIR="$(pwd -P)/local-ledger"
 The synthetic IDs and content above are reproducible documentation fixtures;
 they are not credentials or user data.
 
+## Verified installed-wheel workflow
+
+These are rendered from a real ten-command run of the installed console script,
+not a hand-written mock terminal. The capture starts from a clean Git archive,
+builds one wheel with the pinned toolchain, installs it offline into an empty
+virtual environment, externally hashes the installed package and wrapper, and
+then validates raw stdout, stderr, exit codes, event hashes, replay, paging,
+conflict, and tombstone semantics before any normalization.
+
+![Installed-wheel create, exact replay, revision conflict, and head proof](docs/visuals/installed-wheel-write-replay.svg)
+
+The first panel proves create, exact-command idempotent replay of the same
+stored event, revision 2, a rejected stale revision with exit 11, and an
+unchanged head.
+
+![Installed-wheel bounded history, JSONL continuation, tombstone, live get, and audit head](docs/visuals/installed-wheel-history-tombstone.svg)
+
+The second panel proves bounded JSON/JSONL history continuation, a content-free
+revision 3 tombstone, a live read that hides the deleted note, and an audit head
+that retains the terminal event.
+
+Only the run-specific note ID, three event digests, three microsecond
+timestamps, and temporary filesystem paths are normalized. The complete
+normalized canonical transcript, source commit and tree, capture-input
+manifest, wheel and `RECORD` hashes, builder versions, installed-file digest,
+and verification assertions are reviewable in
+[the evidence JSON](docs/visuals/evidence/installed-wheel-cli.v1.json).
+
+## Source-bound architecture and failure behavior
+
+![Implemented RecallLedger CLI and ledger architecture](docs/visuals/architecture-workflow.svg)
+
+![RecallLedger write settlement and retry state machine](docs/visuals/transaction-output-retry.svg)
+
+Both diagrams are bound to named implementation symbols and exact written
+contracts. Their scope, regeneration commands, and non-claims are documented
+in [the visual evidence index](docs/visuals/README.md).
+
 ## Verify from source
 
 ```bash
@@ -176,9 +214,9 @@ Each screenshot, diagram, plot, or recording must name its source fixture and
 regeneration command, pass a freshness check, and contain no private notes,
 identifiers, tokens, or personal data. Speculative mockups are not evidence.
 
-The current source-bound architecture and failure diagrams, their versioned
-inputs, regeneration commands, and non-claims are documented in
-[the visual evidence index](docs/visuals/README.md).
+The current installed-wheel transcripts, source-bound architecture and failure
+diagram, their versioned inputs, regeneration commands, and non-claims are
+documented in [the visual evidence index](docs/visuals/README.md).
 
 Benchmarks will compare simple lexical and recency baselines before claiming
 that embeddings or an LLM improve retrieval. Evaluation fixtures will be

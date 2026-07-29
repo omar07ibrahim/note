@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1212" viewBox="0 0 1600 1212" role="img" aria-labelledby="installed-wheel-write-replay-title installed-wheel-write-replay-description">
+  <title id="installed-wheel-write-replay-title">Installed wheel · write, replay, and conflict</title>
+  <desc id="installed-wheel-write-replay-description">Installed wheel · write, replay, and conflict. A deterministic terminal rendering of normalized structured records captured from the installed RecallLedger wheel. Captured from an installed wheel; only run-specific note ID, event digests, microsecond timestamps, and temporary paths are normalized.</desc>
+  <style>
+    .title { fill: #142033; font: 700 32px system-ui, sans-serif; }
+    .subtitle { fill: #405166; font: 500 17px system-ui, sans-serif; }
+    .provenance { fill: #526276; font: 500 13px ui-monospace, monospace; }
+    .terminal-text, .command, .stdout, .stderr, .exit, .exit-error { font: 500 15px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .command { fill: #d7f9ef; font-weight: 700; }
+    .stdout { fill: #e6edf7; }
+    .stderr { fill: #ffc9cf; }
+    .exit { fill: #8ee6b7; font-weight: 700; }
+    .exit-error { fill: #ff9fab; font-weight: 700; }
+    .caption { fill: #405166; font: 500 13px system-ui, sans-serif; }
+  </style>
+  <rect width="1600" height="1212" fill="#f7f9fc"/>
+  <text class="title" x="48" y="54">Installed wheel · write, replay, and conflict</text>
+  <text class="subtitle" x="48" y="86">Steps 1-5: append, idempotent replay, optimistic revision, stale rejection, head proof</text>
+  <text class="provenance" x="48" y="116">source 9221ee08fd3a · wheel sha256 0c716fd3c6168f10…</text>
+  <rect x="48" y="150" width="1504" height="970" rx="14" fill="#111827" stroke="#45566d" stroke-width="2"/>
+  <circle cx="72" cy="174" r="7" fill="#ff6978"/>
+  <circle cx="96" cy="174" r="7" fill="#f7c65d"/>
+  <circle cx="120" cy="174" r="7" fill="#65d39b"/>
+  <text class="provenance" x="146" y="179" fill="#b9c5d6">installed-venv · synthetic tenant · canonical JSON</text>
+    <text class="command" x="76" y="222">$ recall-ledger --data-dir '&lt;DATA_DIR&gt;' --tenant-id tn_11111111111111111111111111111111 create --command-id </text>
+    <text class="command" x="76" y="246">  cmd_00000000000000000000000000000001 --content-file '&lt;FIXTURE:content-v1&gt;'</text>
+    <text class="stdout" x="76" y="270">stdout | {"event":{"command_id":"cmd_00000000000000000000000000000001","content":{"body":"Synthetic local-first memory used only for this </text>
+    <text class="stdout" x="76" y="294">         reproducible demo.","tags":["demo","ledger"],"title":"Portfolio evidence"},"event_hash":"&lt;EVENT_HASH_R1&gt;","kind":"note.created","note</text>
+    <text class="stdout" x="76" y="318">         _id":"&lt;NOTE_ID&gt;","previous_event_hash":null,"recorded_at_us":"&lt;RECORDED_AT_US_R1&gt;","revision":1,"schema_version":1,"tenant_id":"tn_11</text>
+    <text class="stdout" x="76" y="342">         111111111111111111111111111111","tombstone_reason":null},"ok":true,"operation":"create","replayed":false}</text>
+    <text class="exit" x="76" y="366">exit   | 0</text>
+    <text class="terminal-text" x="76" y="390"></text>
+    <text class="command" x="76" y="414">$ recall-ledger --data-dir '&lt;DATA_DIR&gt;' --tenant-id tn_11111111111111111111111111111111 create --command-id </text>
+    <text class="command" x="76" y="438">  cmd_00000000000000000000000000000001 --content-file '&lt;FIXTURE:content-v1&gt;'</text>
+    <text class="stdout" x="76" y="462">stdout | {"event":{"command_id":"cmd_00000000000000000000000000000001","content":{"body":"Synthetic local-first memory used only for this </text>
+    <text class="stdout" x="76" y="486">         reproducible demo.","tags":["demo","ledger"],"title":"Portfolio evidence"},"event_hash":"&lt;EVENT_HASH_R1&gt;","kind":"note.created","note</text>
+    <text class="stdout" x="76" y="510">         _id":"&lt;NOTE_ID&gt;","previous_event_hash":null,"recorded_at_us":"&lt;RECORDED_AT_US_R1&gt;","revision":1,"schema_version":1,"tenant_id":"tn_11</text>
+    <text class="stdout" x="76" y="534">         111111111111111111111111111111","tombstone_reason":null},"ok":true,"operation":"create","replayed":true}</text>
+    <text class="exit" x="76" y="558">exit   | 0</text>
+    <text class="terminal-text" x="76" y="582"></text>
+    <text class="command" x="76" y="606">$ recall-ledger --data-dir '&lt;DATA_DIR&gt;' --tenant-id tn_11111111111111111111111111111111 revise --note-id '&lt;NOTE_ID&gt;' --command-id </text>
+    <text class="command" x="76" y="630">  cmd_00000000000000000000000000000002 --expected-revision 1 --content-file '&lt;FIXTURE:content-v2&gt;'</text>
+    <text class="stdout" x="76" y="654">stdout | {"event":{"command_id":"cmd_00000000000000000000000000000002","content":{"body":"Revision two demonstrates optimistic concurrency and</text>
+    <text class="stdout" x="76" y="678">          verified paging.","tags":["demo","ledger","revision-2"],"title":"Portfolio evidence v2"},"event_hash":"&lt;EVENT_HASH_R2&gt;","kind":"note</text>
+    <text class="stdout" x="76" y="702">         .revised","note_id":"&lt;NOTE_ID&gt;","previous_event_hash":"&lt;EVENT_HASH_R1&gt;","recorded_at_us":"&lt;RECORDED_AT_US_R2&gt;","revision":2,"schema_v</text>
+    <text class="stdout" x="76" y="726">         ersion":1,"tenant_id":"tn_11111111111111111111111111111111","tombstone_reason":null},"ok":true,"operation":"revise","replayed":false}</text>
+    <text class="exit" x="76" y="750">exit   | 0</text>
+    <text class="terminal-text" x="76" y="774"></text>
+    <text class="command" x="76" y="798">$ recall-ledger --data-dir '&lt;DATA_DIR&gt;' --tenant-id tn_11111111111111111111111111111111 revise --note-id '&lt;NOTE_ID&gt;' --command-id </text>
+    <text class="command" x="76" y="822">  cmd_00000000000000000000000000000003 --expected-revision 1 --content-file '&lt;FIXTURE:content-stale&gt;'</text>
+    <text class="stderr" x="76" y="846">stderr | {"error":{"code":"REVISION_CONFLICT","message":"the note head no longer matches the expected </text>
+    <text class="stderr" x="76" y="870">         revision","retry":"inspect_head_then_new_command"},"ok":false}</text>
+    <text class="exit-error" x="76" y="894">exit   | 11</text>
+    <text class="terminal-text" x="76" y="918"></text>
+    <text class="command" x="76" y="942">$ recall-ledger --data-dir '&lt;DATA_DIR&gt;' --tenant-id tn_11111111111111111111111111111111 head --note-id '&lt;NOTE_ID&gt;'</text>
+    <text class="stdout" x="76" y="966">stdout | {"event":{"command_id":"cmd_00000000000000000000000000000002","content":{"body":"Revision two demonstrates optimistic concurrency and</text>
+    <text class="stdout" x="76" y="990">          verified paging.","tags":["demo","ledger","revision-2"],"title":"Portfolio evidence v2"},"event_hash":"&lt;EVENT_HASH_R2&gt;","kind":"note</text>
+    <text class="stdout" x="76" y="1014">         .revised","note_id":"&lt;NOTE_ID&gt;","previous_event_hash":"&lt;EVENT_HASH_R1&gt;","recorded_at_us":"&lt;RECORDED_AT_US_R2&gt;","revision":2,"schema_v</text>
+    <text class="stdout" x="76" y="1038">         ersion":1,"tenant_id":"tn_11111111111111111111111111111111","tombstone_reason":null},"found":true,"ok":true,"operation":"head"}</text>
+    <text class="exit" x="76" y="1062">exit   | 0</text>
+  <text class="caption" x="48" y="1155">Captured from an installed wheel; only run-specific note ID, event digests, microsecond timestamps, and temporary paths are</text>
+  <text class="caption" x="48" y="1174">normalized.</text>
+</svg>

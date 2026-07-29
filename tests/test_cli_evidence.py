@@ -17,8 +17,8 @@ from recall_ledger.events import (
     TenantId,
     TombstoneReason,
 )
+from tools import capture_cli_evidence, render_cli_evidence
 from tools import cli_evidence_contract as contract
-from tools import render_cli_evidence
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE_DIRECTORY = ROOT / "docs" / "visuals" / "fixtures"
@@ -477,6 +477,23 @@ def test_terminal_svg_is_deterministic_accessible_and_self_contained() -> None:
         assert b"/tmp/" not in payload
         assert b"/home/" not in payload
         assert filename.removesuffix(".svg").encode() in payload
+
+
+def test_committed_evidence_is_current_canonical_and_rendered_byte_exact() -> None:
+    raw = capture_cli_evidence.DEFAULT_EVIDENCE_PATH.read_bytes()
+    document = contract.decode_evidence_bytes(raw)
+    assert contract.canonical_json_bytes(document) == raw
+
+    provenance = cast(contract.JsonObject, document["provenance"])
+    inputs = cast(contract.JsonObject, provenance["capture_inputs"])
+    assert capture_cli_evidence.current_capture_input_digest(ROOT) == inputs["sha256"]
+
+    rendered = render_cli_evidence.render_evidence(document)
+    for filename, payload in rendered.items():
+        output = render_cli_evidence.OUTPUT_DIRECTORY / filename
+        assert output.read_bytes() == payload
+        assert output.stat().st_mode & 0o777 == 0o644
+    assert capture_cli_evidence.DEFAULT_EVIDENCE_PATH.stat().st_mode & 0o777 == 0o644
 
 
 @pytest.mark.parametrize(

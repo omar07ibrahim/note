@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1212" viewBox="0 0 1600 1212" role="img" aria-labelledby="installed-wheel-history-tombstone-title installed-wheel-history-tombstone-description">
+  <title id="installed-wheel-history-tombstone-title">Installed wheel · paging and logical deletion</title>
+  <desc id="installed-wheel-history-tombstone-description">Installed wheel · paging and logical deletion. A deterministic terminal rendering of normalized structured records captured from the installed RecallLedger wheel. Captured from an installed wheel; only run-specific note ID, event digests, microsecond timestamps, and temporary paths are normalized.</desc>
+  <style>
+    .title { fill: #142033; font: 700 32px system-ui, sans-serif; }
+    .subtitle { fill: #405166; font: 500 17px system-ui, sans-serif; }
+    .provenance { fill: #526276; font: 500 13px ui-monospace, monospace; }
+    .terminal-text, .command, .stdout, .stderr, .exit, .exit-error { font: 500 15px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .command { fill: #d7f9ef; font-weight: 700; }
+    .stdout { fill: #e6edf7; }
+    .stderr { fill: #ffc9cf; }
+    .exit { fill: #8ee6b7; font-weight: 700; }
+    .exit-error { fill: #ff9fab; font-weight: 700; }
+    .caption { fill: #405166; font: 500 13px system-ui, sans-serif; }
+  </style>
+  <rect width="1600" height="1212" fill="#f7f9fc"/>
+  <text class="title" x="48" y="54">Installed wheel · paging and logical deletion</text>
+  <text class="subtitle" x="48" y="86">Steps 6-10: bounded history, JSONL continuation, tombstone, live-read and audit views</text>
+  <text class="provenance" x="48" y="116">source 9221ee08fd3a · wheel sha256 0c716fd3c6168f10…</text>
+  <rect x="48" y="150" width="1504" height="970" rx="14" fill="#111827" stroke="#45566d" stroke-width="2"/>
+  <circle cx="72" cy="174" r="7" fill="#ff6978"/>
+  <circle cx="96" cy="174" r="7" fill="#f7c65d"/>
+  <circle cx="120" cy="174" r="7" fill="#65d39b"/>
+  <text class="provenance" x="146" y="179" fill="#b9c5d6">installed-venv · synthetic tenant · canonical JSON</text>
+    <text class="command" x="76" y="222">$ recall-ledger --data-dir '&lt;DATA_DIR&gt;' --tenant-id tn_11111111111111111111111111111111 history --note-id '&lt;NOTE_ID&gt;' --after-revision 0 </text>
+    <text class="command" x="76" y="246">  --limit 1</text>
+    <text class="stdout" x="76" y="270">stdout | {"after_revision":0,"events":[{"command_id":"cmd_00000000000000000000000000000001","content":{"body":"Synthetic local-first memory </text>
+    <text class="stdout" x="76" y="294">         used only for this reproducible demo.","tags":["demo","ledger"],"title":"Portfolio evidence"},"event_hash":"&lt;EVENT_HASH_R1&gt;","kind":"</text>
+    <text class="stdout" x="76" y="318">         note.created","note_id":"&lt;NOTE_ID&gt;","previous_event_hash":null,"recorded_at_us":"&lt;RECORDED_AT_US_R1&gt;","revision":1,"schema_version":1</text>
+    <text class="stdout" x="76" y="342">         ,"tenant_id":"tn_11111111111111111111111111111111","tombstone_reason":null}],"found":true,"limit":1,"next_after_revision":1,"note_id"</text>
+    <text class="stdout" x="76" y="366">         :"&lt;NOTE_ID&gt;","ok":true,"operation":"history","tenant_id":"tn_11111111111111111111111111111111"}</text>
+    <text class="exit" x="76" y="390">exit   | 0</text>
+    <text class="terminal-text" x="76" y="414"></text>
+    <text class="command" x="76" y="438">$ recall-ledger --data-dir '&lt;DATA_DIR&gt;' --tenant-id tn_11111111111111111111111111111111 history --note-id '&lt;NOTE_ID&gt;' --after-revision 1 </text>
+    <text class="command" x="76" y="462">  --limit 1 --jsonl</text>
+    <text class="stdout" x="76" y="486">stdout | {"event":{"command_id":"cmd_00000000000000000000000000000002","content":{"body":"Revision two demonstrates optimistic concurrency and</text>
+    <text class="stdout" x="76" y="510">          verified paging.","tags":["demo","ledger","revision-2"],"title":"Portfolio evidence v2"},"event_hash":"&lt;EVENT_HASH_R2&gt;","kind":"note</text>
+    <text class="stdout" x="76" y="534">         .revised","note_id":"&lt;NOTE_ID&gt;","previous_event_hash":"&lt;EVENT_HASH_R1&gt;","recorded_at_us":"&lt;RECORDED_AT_US_R2&gt;","revision":2,"schema_v</text>
+    <text class="stdout" x="76" y="558">         ersion":1,"tenant_id":"tn_11111111111111111111111111111111","tombstone_reason":null},"record":"event"}</text>
+    <text class="stdout" x="76" y="582">stdout | {"after_revision":1,"event_count":1,"found":true,"limit":1,"next_after_revision":null,"note_id":"&lt;NOTE_ID&gt;","record":"page","tenant_i</text>
+    <text class="stdout" x="76" y="606">         d":"tn_11111111111111111111111111111111"}</text>
+    <text class="exit" x="76" y="630">exit   | 0</text>
+    <text class="terminal-text" x="76" y="654"></text>
+    <text class="command" x="76" y="678">$ recall-ledger --data-dir '&lt;DATA_DIR&gt;' --tenant-id tn_11111111111111111111111111111111 tombstone --note-id '&lt;NOTE_ID&gt;' --command-id </text>
+    <text class="command" x="76" y="702">  cmd_00000000000000000000000000000004 --expected-revision 2 --reason user_request</text>
+    <text class="stdout" x="76" y="726">stdout | {"event":{"command_id":"cmd_00000000000000000000000000000004","content":null,"event_hash":"&lt;EVENT_HASH_R3&gt;","kind":"note.tombstoned",</text>
+    <text class="stdout" x="76" y="750">         "note_id":"&lt;NOTE_ID&gt;","previous_event_hash":"&lt;EVENT_HASH_R2&gt;","recorded_at_us":"&lt;RECORDED_AT_US_R3&gt;","revision":3,"schema_version":1,</text>
+    <text class="stdout" x="76" y="774">         "tenant_id":"tn_11111111111111111111111111111111","tombstone_reason":"user_request"},"ok":true,"operation":"tombstone","replayed":fal</text>
+    <text class="stdout" x="76" y="798">         se}</text>
+    <text class="exit" x="76" y="822">exit   | 0</text>
+    <text class="terminal-text" x="76" y="846"></text>
+    <text class="command" x="76" y="870">$ recall-ledger --data-dir '&lt;DATA_DIR&gt;' --tenant-id tn_11111111111111111111111111111111 get --note-id '&lt;NOTE_ID&gt;'</text>
+    <text class="stdout" x="76" y="894">stdout | {"event":null,"found":false,"ok":true,"operation":"get"}</text>
+    <text class="exit" x="76" y="918">exit   | 0</text>
+    <text class="terminal-text" x="76" y="942"></text>
+    <text class="command" x="76" y="966">$ recall-ledger --data-dir '&lt;DATA_DIR&gt;' --tenant-id tn_11111111111111111111111111111111 head --note-id '&lt;NOTE_ID&gt;'</text>
+    <text class="stdout" x="76" y="990">stdout | {"event":{"command_id":"cmd_00000000000000000000000000000004","content":null,"event_hash":"&lt;EVENT_HASH_R3&gt;","kind":"note.tombstoned",</text>
+    <text class="stdout" x="76" y="1014">         "note_id":"&lt;NOTE_ID&gt;","previous_event_hash":"&lt;EVENT_HASH_R2&gt;","recorded_at_us":"&lt;RECORDED_AT_US_R3&gt;","revision":3,"schema_version":1,</text>
+    <text class="stdout" x="76" y="1038">         "tenant_id":"tn_11111111111111111111111111111111","tombstone_reason":"user_request"},"found":true,"ok":true,"operation":"head"}</text>
+    <text class="exit" x="76" y="1062">exit   | 0</text>
+  <text class="caption" x="48" y="1155">Captured from an installed wheel; only run-specific note ID, event digests, microsecond timestamps, and temporary paths are</text>
+  <text class="caption" x="48" y="1174">normalized.</text>
+</svg>

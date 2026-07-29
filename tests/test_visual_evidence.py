@@ -30,7 +30,7 @@ from recall_ledger.cli import (
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from tools import render_visuals  # noqa: E402 - repository-local tool is not installed
+from tools import render_cli_evidence, render_visuals  # noqa: E402 - local tools
 
 SOURCE_DIRECTORY = ROOT / "docs" / "visuals" / "sources"
 OUTPUT_DIRECTORY = ROOT / "docs" / "visuals"
@@ -45,9 +45,12 @@ EXPECTED_OUTPUTS = {
 EXPECTED_VISUAL_TREE = {
     Path("README.md"),
     Path("architecture-workflow.svg"),
+    Path("evidence/installed-wheel-cli.v1.json"),
     Path("fixtures/cli-content-stale.json"),
     Path("fixtures/cli-content-v1.json"),
     Path("fixtures/cli-content-v2.json"),
+    Path("installed-wheel-history-tombstone.svg"),
+    Path("installed-wheel-write-replay.svg"),
     Path("sources/architecture-workflow.v1.json"),
     Path("sources/transaction-output-retry.v1.json"),
     Path("transaction-output-retry.svg"),
@@ -358,6 +361,7 @@ def resolve_binding(binding: render_visuals.Binding) -> None:
 
 
 def test_visual_sources_use_closed_versioned_bounded_schema(tmp_path: Path) -> None:
+    assert frozenset(render_cli_evidence.OUTPUT_NAMES) == render_visuals.COLOCATED_SVG_NAMES
     visual_tree = {
         path.relative_to(OUTPUT_DIRECTORY) for path in OUTPUT_DIRECTORY.rglob("*") if path.is_file()
     }
@@ -980,6 +984,15 @@ def test_sdist_carries_self_contained_visual_renderer(tmp_path: Path) -> None:
         text=True,
     )
     assert render_check.returncode == 0, render_check.stderr
+
+    terminal_check = subprocess.run(  # noqa: S603 - fixed interpreter and repository tool
+        [sys.executable, "tools/render_cli_evidence.py", "--check"],
+        cwd=extracted_root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert terminal_check.returncode == 0, terminal_check.stderr
 
     import_check = subprocess.run(  # noqa: S603 - fixed interpreter and constant probe
         [
