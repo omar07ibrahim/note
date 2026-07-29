@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "recall-ledger"
 version = "0.1.0"
-description = "Tenant-isolated event contracts and SQLite foundations for local-first AI memory"
+description = "Tenant-isolated transactional SQLite ledger for local-first AI memory"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"

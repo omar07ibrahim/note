@@ -8,11 +8,11 @@ measured hybrid retrieval.
 
 It is not currently a Telegram bot or a generic CRUD application.
 
-> **Phase 2a — SQLite foundation.** The current tree combines bounded,
-> canonical, tenant-scoped note events with a versioned, locked, fail-closed
-> SQLite open/migration boundary. Atomic note mutation and query methods are
-> the next slice; no authorization adapter, search API, model integration,
-> benchmark, CLI, or user interface is claimed yet.
+> **Phase 2b — atomic ledger.** The current tree combines bounded, canonical,
+> tenant-scoped note events with a versioned, locked SQLite boundary and
+> transactional create, revise, tombstone, head, and history operations. No
+> authorization adapter, search API, model integration, benchmark, CLI, or
+> user interface is claimed yet.
 
 The storage slice currently supports Linux/POSIX deployments only. Its
 `fcntl`, `flock`, `O_DIRECTORY`, `O_NOFOLLOW`, and fork-safety contract is
@@ -74,9 +74,36 @@ files, SQLite 3.37+ `STRICT` tables, exact checksummed migrations, closed schema
 validation, foreign-key checks, a bounded defensive connection profile,
 rollback journaling with `synchronous=FULL`, and process/thread ownership. The
 rollback journal avoids the known multi-connection WAL-reset corruption window
-in unpatched SQLite runtimes. It deliberately exposes no note-write API in this
-slice. The exact guarantees, deployment preconditions, and non-claims are in the
-[SQLite storage boundary](docs/storage-boundary.md).
+in unpatched SQLite runtimes.
+
+The transaction API generates note IDs and UTC microsecond timestamps inside
+the storage boundary. Each mutation uses `BEGIN IMMEDIATE`, checks tenant-wide
+command idempotency before reading the clock, derives a canonical event from
+the verified stored head, inserts the event, and inserts or compare-and-swaps
+the head before commit. Exact retries return the original event; reuse of a
+command for a different intent fails closed. Head and history reads decode the
+canonical event BLOB and reconcile every duplicated relational field.
+
+```mermaid
+flowchart LR
+    A[Validated tenant command] --> B[BEGIN IMMEDIATE]
+    B --> C{Command already stored?}
+    C -->|Exact intent| D[Rollback read-only transaction; replay original event]
+    C -->|Different intent| E[Idempotency conflict]
+    C -->|New command| F{Create or successor?}
+    F -->|Create| G[Generate unused storage-owned note ID]
+    F -->|Successor| H[Verify latest tenant note head]
+    G --> I[Read storage-owned UTC time]
+    H --> I
+    I --> J[Derive and insert canonical event]
+    J --> K[Insert or CAS head]
+    K --> L[Re-read and reconcile]
+    L --> M[COMMIT and prove autocommit]
+```
+
+The exact guarantees, deployment preconditions, failure states, and non-claims
+are in the [SQLite storage boundary](docs/storage-boundary.md) and
+[transaction contract](docs/transaction-contract.md).
 
 Hashes reveal mutation only when a verifier holds an authenticated latest
 checkpoint or expected tip. Trusting the creation event alone does not detect

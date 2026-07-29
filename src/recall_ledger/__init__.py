@@ -14,12 +14,19 @@ from .events import (
     new_note_id,
     new_tenant_id,
 )
-from .storage import LedgerStorageError, SQLiteLedger, StorageStatus
+from .storage import (
+    HistoryPage,
+    LedgerStorageError,
+    SQLiteLedger,
+    StorageStatus,
+    TransitionResult,
+)
 
 __all__ = [
     "CommandId",
     "ContractViolation",
     "EventKind",
+    "HistoryPage",
     "LedgerEvent",
     "LedgerStorageError",
     "NoteContent",
@@ -28,6 +35,7 @@ __all__ = [
     "StorageStatus",
     "TenantId",
     "TombstoneReason",
+    "TransitionResult",
     "decode_event",
     "new_command_id",
     "new_note_id",

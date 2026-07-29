@@ -1,8 +1,9 @@
 # SQLite storage boundary v1
 
-RecallLedger's first durable-storage slice defines how a local SQLite database
-is identified, migrated, opened, and checked. It does not yet expose note
-mutation, query, projection-rebuild, CLI, or authorization APIs.
+RecallLedger's durable-storage boundary defines how a local SQLite database is
+identified, migrated, opened, checked, and updated through atomic note
+transitions. It exposes tenant-scoped head and history reads, but no retrieval
+index, search, projection-rebuild, CLI, or authorization adapter.
 
 This module currently supports Linux/POSIX only. It depends on `fcntl`,
 `flock`, `O_DIRECTORY`, `O_NOFOLLOW`, and `register_at_fork`; Windows is not a
@@ -54,9 +55,9 @@ quarantine instead of crossing a lock transition.
 
 The lock is cooperative. A process that ignores it and edits the database
 directly is outside the writer API, although schema-cookie, exact-schema,
-foreign-key, canonical-event, and projection checks in later layers are
-designed to detect resulting drift. A failed lock acquisition is bounded and
-does not retry forever.
+foreign-key, canonical-event, latest-head, and projection checks detect
+involved drift. A failed lock acquisition is bounded and does not retry
+forever.
 
 ## Format and migration identity
 
@@ -90,12 +91,15 @@ The current schema contains:
 - deterministic keyset-pagination indexes for live and all-note views;
 - a closed `schema_migrations` ledger.
 
-The tables are `STRICT` and `WITHOUT ROWID`. The upcoming transaction layer
-will derive events from a storage-loaded head, validate canonical bytes against
-every duplicated column, insert an event, and compare-and-swap the head in one
-`BEGIN IMMEDIATE` transaction. This foundation does not claim those semantic or
-append-only operations are implemented yet; direct SQL by a process that
-ignores the API remains outside the invariant boundary.
+The tables are `STRICT` and `WITHOUT ROWID`. The transaction layer derives
+events from a storage-loaded head, validates canonical bytes against every
+duplicated column, inserts an event, and inserts or compare-and-swaps the head
+in one `BEGIN IMMEDIATE` transaction. Tenant-wide command lookup precedes note
+ID generation, clock reads, and current-state checks, so an exact retry returns
+the original event even after the head advances. Direct SQL by a process that
+ignores the API remains outside the invariant boundary; rows are
+append-only-intended, not protected from the database owner by SQLite
+permissions.
 
 ## Connection profile
 
@@ -154,6 +158,15 @@ cleanup is only a last-resort safety net: it never waits on a lifecycle
 operation already in progress, and it retains a safe process-lifetime
 quarantine when ownership or connection closure is uncertain.
 
+A transition returns only after `COMMIT` completes and SQLite reports no active
+transaction. A failed pre-commit operation is rolled back and the inactive
+state is verified. If rollback cannot be proven, or a failed/interrupting
+`COMMIT` leaves the outcome unknown, the ledger object is poisoned: every
+operation except `close()` fails. The caller must close it, open a new
+connection, and retry the same command ID; exact idempotency then resolves
+whether the original transaction committed. Connection poisoning does not
+claim to repair an underlying disk, filesystem, or SQLite failure.
+
 ## Data and deletion non-claims
 
 The event table is designed to retain earlier event bytes after a logical
@@ -181,5 +194,8 @@ python3 -m venv .venv
 
 The tests exercise fresh initialization and reopen, exact migration/profile
 checks, cooperative-lock behavior, unsafe file types and permissions, foreign
-and future databases, migration rollback, live schema drift, thread/process
-ownership, safe error surfaces, and every source/branch path.
+and future databases, migration rollback, atomic transitions, exact replay and
+conflict classification, tenant isolation, competing writers, clock rollback,
+tombstones, history boundaries, row/head corruption, uncertain transaction
+outcomes, thread/process ownership, safe error surfaces, and every
+source/branch path.

@@ -2,19 +2,26 @@
 
 ## Supported state
 
-RecallLedger is in phase 2a. The current tree implements an in-memory event
-contract and a versioned SQLite open/migration foundation, but no durable note
-mutation/query API or network-facing application. The historical shared-state
-Telegram notes bot is unsupported and must not be deployed.
+RecallLedger is in phase 2b. The current tree implements an in-memory event
+contract, a versioned SQLite boundary, and atomic tenant-scoped create, revise,
+tombstone, head, and history operations. It has no authenticated adapter,
+retrieval index, model boundary, CLI, or network-facing application. The
+historical shared-state Telegram notes bot is unsupported and must not be
+deployed.
 
 Canonical event parsing, text bounds, strict identifier forms, content-free
 tombstones, note-local hash transitions, secure fixed-name file preflight,
 cooperative migration locking, exact schema checks, and the defensive
-connection profile are implemented. Atomic note transitions, authorization,
+connection profile are implemented. Atomic transitions add storage-owned IDs
+and timestamps, tenant-wide exact command replay, optimistic revision checks,
+canonical row reconciliation, terminal tombstones, verified history pages, and
+connection poisoning after uncertain transaction cleanup. Authorization,
 indexing, backup, adapter, and erasure controls below remain requirements for
 future layers rather than current claims. See
 [docs/storage-boundary.md](docs/storage-boundary.md) for the exact SQLite
-deployment assumptions and non-claims.
+deployment assumptions and non-claims, and
+[docs/transaction-contract.md](docs/transaction-contract.md) for mutation and
+read semantics.
 
 The storage module currently supports Linux/POSIX deployments only. Close all
 ledger connections before `fork`; a child that accidentally inherits one must
@@ -25,6 +32,8 @@ immediately `exec` or call `os._exit` without using or finalizing it.
 Every stored note belongs to exactly one immutable tenant. Tenant identity must
 come from an authenticated adapter context, never from a request body, note
 payload, callback string, search query, model output, or client-supplied event.
+The current library cannot authenticate a tenant; supplying the correct
+`TenantId` is the caller's security responsibility.
 Storage queries and uniqueness constraints must include tenant identity, and
 tests must attempt cross-tenant enumeration, search, mutation, and deletion.
 
@@ -63,6 +72,9 @@ Implementations must bound input bytes, Unicode code points, records, tags,
 attachments, query terms, result counts, event replay, index growth, and model
 context. SQLite access must use parameterized statements, explicit
 transactions, migrations, busy-timeout policy, and durable failure handling.
+After an uncertain commit or rollback, the current implementation poisons the
+connection. Callers must close it, reopen storage, and retry the exact command
+ID; using a different command abandons idempotent reconciliation.
 
 Destructive actions require authorization at execution time, a scoped target,
 and an explicit confirmation that cannot be replayed for another tenant or

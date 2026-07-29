@@ -4,6 +4,7 @@ from typing import assert_type
 
 from recall_ledger import (
     CommandId,
+    HistoryPage,
     LedgerEvent,
     LedgerStorageError,
     NoteContent,
@@ -11,6 +12,8 @@ from recall_ledger import (
     SQLiteLedger,
     StorageStatus,
     TenantId,
+    TombstoneReason,
+    TransitionResult,
     decode_event,
 )
 
@@ -35,4 +38,47 @@ def check_storage_api(data_directory: str) -> None:
         return
     assert_type(ledger, SQLiteLedger)
     assert_type(ledger.status(), StorageStatus)
+    created = ledger.create_note(
+        tenant_id=TenantId("tn_0123456789abcdef0123456789abcdef"),
+        command_id=CommandId("cmd_00000000000000000000000000000002"),
+        content=NoteContent("stored title", "stored body"),
+    )
+    assert_type(created, TransitionResult)
+    assert_type(created.event, LedgerEvent)
+    assert_type(created.replayed, bool)
+    revised = ledger.revise_note(
+        tenant_id=created.event.tenant_id,
+        note_id=created.event.note_id,
+        command_id=CommandId("cmd_00000000000000000000000000000003"),
+        expected_revision=created.event.revision,
+        content=NoteContent("revised title", "revised body"),
+    )
+    assert_type(revised, TransitionResult)
+    deleted = ledger.tombstone_note(
+        tenant_id=revised.event.tenant_id,
+        note_id=revised.event.note_id,
+        command_id=CommandId("cmd_00000000000000000000000000000004"),
+        expected_revision=revised.event.revision,
+        reason=TombstoneReason.USER_REQUEST,
+    )
+    assert_type(deleted, TransitionResult)
+    assert_type(
+        ledger.get_note(
+            tenant_id=deleted.event.tenant_id,
+            note_id=deleted.event.note_id,
+        ),
+        LedgerEvent | None,
+    )
+    assert_type(
+        ledger.get_head(
+            tenant_id=deleted.event.tenant_id,
+            note_id=deleted.event.note_id,
+        ),
+        LedgerEvent | None,
+    )
+    history = ledger.read_history(
+        tenant_id=deleted.event.tenant_id,
+        note_id=deleted.event.note_id,
+    )
+    assert_type(history, HistoryPage | None)
     ledger.close()

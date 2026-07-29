@@ -16,17 +16,34 @@ import sqlite3
 import stat
 import textwrap
 import threading
+import time
 import warnings
 import weakref
 from contextlib import suppress
 from dataclasses import dataclass
 from enum import Enum
-from itertools import count
+from itertools import count, pairwise
 from pathlib import Path
 from types import TracebackType
 from typing import Final, Self, cast
 
-from .events import MAX_EVENT_BYTES, MAX_RECORDED_AT_US, MAX_REVISION
+from .events import (
+    MAX_EVENT_BYTES,
+    MAX_RECORDED_AT_US,
+    MAX_REVISION,
+    CommandId,
+    ContractViolation,
+    EventKind,
+    LedgerEvent,
+    NoteContent,
+    NoteId,
+    TenantId,
+    TombstoneReason,
+    _validate_identifier,
+    _validated_content_values,
+    decode_event,
+    new_note_id,
+)
 
 DATABASE_FILENAME: Final = "recall-ledger.sqlite3"
 LOCK_FILENAME: Final = ".recall-ledger.lock"
@@ -35,9 +52,12 @@ STORAGE_SCHEMA_VERSION: Final = 1
 MINIMUM_SQLITE_VERSION: Final = (3, 37, 0)
 DEFAULT_BUSY_TIMEOUT_MS: Final = 5_000
 MAX_BUSY_TIMEOUT_MS: Final = 60_000
+DEFAULT_PAGE_SIZE: Final = 50
+MAX_PAGE_SIZE: Final = 100
 _DIRECTORY_MODE: Final = 0o700
 _FILE_MODE: Final = 0o600
 _SQLITE_SYNCHRONOUS_FULL: Final = 2
+_NOTE_ID_GENERATION_ATTEMPTS: Final = 4
 
 _DATABASE_SIDECARS: Final = (
     f"{DATABASE_FILENAME}-journal",
@@ -69,6 +89,14 @@ class _DatabaseState(Enum):
     CURRENT = "current"
 
 
+class _WriteTransactionPhase(Enum):
+    BEFORE_BEGIN = "before_begin"
+    ACTIVE = "active"
+    COMMIT_CALL = "commit_call"
+    COMMIT_RETURNED = "commit_returned"
+    COMMITTED = "committed"
+
+
 @dataclass(frozen=True, slots=True)
 class StorageStatus:
     """Non-sensitive facts asserted for the current connection."""
@@ -88,6 +116,24 @@ class StorageStatus:
 
 
 @dataclass(frozen=True, slots=True)
+class TransitionResult:
+    """A committed event and whether it came from exact command replay."""
+
+    event: LedgerEvent
+    replayed: bool
+
+
+@dataclass(frozen=True, slots=True)
+class HistoryPage:
+    """One bounded, chain-verified history page."""
+
+    tenant_id: TenantId
+    note_id: NoteId
+    events: tuple[LedgerEvent, ...]
+    next_after_revision: int | None
+
+
+@dataclass(frozen=True, slots=True)
 class _OpenResources:
     connection: sqlite3.Connection
     directory: Path
@@ -102,6 +148,17 @@ class _RegisteredLedger:
     connection: sqlite3.Connection
     directory_fd: int
     lock_fd: int
+
+
+@dataclass(frozen=True, slots=True)
+class _TransitionIntent:
+    tenant_id: TenantId
+    note_id: NoteId | None
+    command_id: CommandId
+    kind: EventKind
+    expected_revision: int | None
+    content: NoteContent | None
+    tombstone_reason: TombstoneReason | None
 
 
 def _sql(value: str) -> str:
@@ -279,6 +336,89 @@ _EXPECTED_SCHEMA: Final = tuple(
         )
     )
 )
+_EVENT_COLUMNS: Final = _sql(
+    """
+    tenant_id,
+    note_id,
+    revision,
+    command_id,
+    recorded_at_us,
+    kind,
+    previous_revision,
+    previous_event_hash,
+    event_hash,
+    schema_version,
+    event_bytes
+    """
+)
+_JOINED_EVENT_COLUMNS: Final = _sql(
+    """
+    event.tenant_id AS tenant_id,
+    event.note_id AS note_id,
+    event.revision AS revision,
+    event.command_id AS command_id,
+    event.recorded_at_us AS recorded_at_us,
+    event.kind AS kind,
+    event.previous_revision AS previous_revision,
+    event.previous_event_hash AS previous_event_hash,
+    event.event_hash AS event_hash,
+    event.schema_version AS schema_version,
+    event.event_bytes AS event_bytes
+    """
+)
+_LOAD_COMMAND_EVENT_SQL: Final = _sql(
+    f"""
+    SELECT {_EVENT_COLUMNS}
+    FROM ledger_events
+    WHERE tenant_id = ? AND command_id = ?
+    """  # noqa: S608 - interpolated fragments are fixed module constants
+)
+_LOAD_EVENT_SQL: Final = _sql(
+    f"""
+    SELECT {_EVENT_COLUMNS}
+    FROM ledger_events
+    WHERE tenant_id = ? AND note_id = ? AND revision = ?
+    """  # noqa: S608 - interpolated fragments are fixed module constants
+)
+_LOAD_HEAD_SQL: Final = _sql(
+    f"""
+    WITH latest AS (
+        SELECT revision, event_hash
+        FROM ledger_events
+        WHERE tenant_id = ? AND note_id = ?
+        ORDER BY revision DESC
+        LIMIT 1
+    )
+    SELECT
+        head.tenant_id AS head_tenant_id,
+        head.note_id AS head_note_id,
+        head.revision AS head_revision,
+        head.event_hash AS head_event_hash,
+        head.updated_at_us AS head_updated_at_us,
+        head.is_tombstoned AS head_is_tombstoned,
+        latest.revision AS latest_revision,
+        latest.event_hash AS latest_event_hash,
+        {_JOINED_EVENT_COLUMNS}
+    FROM (SELECT 1) AS singleton
+    LEFT JOIN note_heads AS head
+      ON head.tenant_id = ? AND head.note_id = ?
+    LEFT JOIN ledger_events AS event
+      ON event.tenant_id = head.tenant_id
+     AND event.note_id = head.note_id
+     AND event.revision = head.revision
+     AND event.event_hash = head.event_hash
+    LEFT JOIN latest ON 1 = 1
+    """  # noqa: S608 - interpolated fragments are fixed module constants
+)
+_LOAD_HISTORY_SQL: Final = _sql(
+    f"""
+    SELECT {_EVENT_COLUMNS}
+    FROM ledger_events
+    WHERE tenant_id = ? AND note_id = ? AND revision >= ?
+    ORDER BY revision ASC
+    LIMIT ?
+    """  # noqa: S608 - interpolated fragments are fixed module constants
+)
 
 
 class SQLiteLedger:
@@ -294,6 +434,7 @@ class SQLiteLedger:
         "_lock_fd",
         "_owner_pid",
         "_owner_thread",
+        "_poisoned",
         "_registry_token",
         "_schema_cookie",
     )
@@ -310,6 +451,7 @@ class SQLiteLedger:
         self._fork_invalidated = False
         self._owner_pid = os.getpid()
         self._owner_thread = threading.get_ident()
+        self._poisoned = False
         self._registry_token = next(_REGISTRATION_IDS)
         self._schema_cookie = resources.schema_cookie
         with _REGISTRY_LOCK:
@@ -428,6 +570,259 @@ class SQLiteLedger:
         self._assert_schema_cookie(connection)
         return _connection_status(connection)
 
+    def create_note(
+        self,
+        *,
+        tenant_id: TenantId,
+        command_id: CommandId,
+        content: NoteContent,
+    ) -> TransitionResult:
+        """Atomically create one tenant-owned note or replay the exact command."""
+
+        connection = self._ready_connection()
+        intent = _create_intent(
+            tenant_id=tenant_id,
+            command_id=command_id,
+            content=content,
+        )
+        self._assert_schema_cookie(connection)
+        return self._apply_transition(connection, intent)
+
+    def revise_note(
+        self,
+        *,
+        tenant_id: TenantId,
+        note_id: NoteId,
+        command_id: CommandId,
+        expected_revision: int,
+        content: NoteContent,
+    ) -> TransitionResult:
+        """Atomically revise a live note at one exact expected revision."""
+
+        connection = self._ready_connection()
+        intent = _revise_intent(
+            tenant_id=tenant_id,
+            note_id=note_id,
+            command_id=command_id,
+            expected_revision=expected_revision,
+            content=content,
+        )
+        self._assert_schema_cookie(connection)
+        return self._apply_transition(connection, intent)
+
+    def tombstone_note(
+        self,
+        *,
+        tenant_id: TenantId,
+        note_id: NoteId,
+        command_id: CommandId,
+        expected_revision: int,
+        reason: TombstoneReason,
+    ) -> TransitionResult:
+        """Atomically append a content-free terminal tombstone."""
+
+        connection = self._ready_connection()
+        intent = _tombstone_intent(
+            tenant_id=tenant_id,
+            note_id=note_id,
+            command_id=command_id,
+            expected_revision=expected_revision,
+            reason=reason,
+        )
+        self._assert_schema_cookie(connection)
+        return self._apply_transition(connection, intent)
+
+    def get_note(
+        self,
+        *,
+        tenant_id: TenantId,
+        note_id: NoteId,
+    ) -> LedgerEvent | None:
+        """Load a live head; absent, foreign, and tombstoned notes return None."""
+
+        connection = self._ready_connection()
+        _validate_tenant_note(tenant_id, note_id)
+        self._assert_schema_cookie(connection)
+        try:
+            event = _load_head(connection, tenant_id, note_id)
+        except sqlite3.Error as error:
+            raise _mapped_database_error(error) from None
+        if event is not None and event.kind is EventKind.TOMBSTONED:
+            return None
+        return event
+
+    def get_head(
+        self,
+        *,
+        tenant_id: TenantId,
+        note_id: NoteId,
+    ) -> LedgerEvent | None:
+        """Load the verified current head, including a terminal tombstone."""
+
+        connection = self._ready_connection()
+        _validate_tenant_note(tenant_id, note_id)
+        self._assert_schema_cookie(connection)
+        try:
+            return _load_head(connection, tenant_id, note_id)
+        except sqlite3.Error as error:
+            raise _mapped_database_error(error) from None
+
+    def read_history(
+        self,
+        *,
+        tenant_id: TenantId,
+        note_id: NoteId,
+        after_revision: int = 0,
+        limit: int = DEFAULT_PAGE_SIZE,
+    ) -> HistoryPage | None:
+        """Read one chain-verified page in a consistent SQLite snapshot."""
+
+        connection = self._ready_connection()
+        _validate_tenant_note(tenant_id, note_id)
+        cursor = _validate_history_cursor(after_revision)
+        page_size = _validate_history_limit(limit)
+        self._assert_schema_cookie(connection)
+        try:
+            self._begin_transaction(connection, immediate=False)
+            self._assert_schema_cookie(connection)
+            page = _history_in_transaction(
+                connection,
+                tenant_id=tenant_id,
+                note_id=note_id,
+                after_revision=cursor,
+                limit=page_size,
+            )
+            connection.execute("COMMIT")
+            if _transaction_active(connection):
+                self._poisoned = True
+                raise LedgerStorageError(  # noqa: TRY301 - terminal proof stays guarded
+                    "TRANSACTION_STATE_UNCERTAIN",
+                    "the history snapshot did not end in a clean state",
+                )
+            return page  # noqa: TRY300 - result delivery is part of the guard
+        except BaseException as error:
+            poison_was_preexisting = self._poisoned
+            self._poisoned = True
+            replacement = self._settle_transaction_failure(
+                connection,
+                error,
+                phase=None,
+                poison_was_preexisting=poison_was_preexisting,
+            )
+            if replacement is not None:
+                raise replacement from None
+            raise
+
+    def _apply_transition(
+        self,
+        connection: sqlite3.Connection,
+        intent: _TransitionIntent,
+    ) -> TransitionResult:
+        phase = _WriteTransactionPhase.BEFORE_BEGIN
+        try:
+            self._begin_transaction(connection, immediate=True)
+            phase = _WriteTransactionPhase.ACTIVE
+            self._assert_schema_cookie(connection)
+            result = _transition_in_transaction(connection, intent)
+            self._assert_schema_cookie(connection)
+            if result.replayed:
+                self._rollback_or_poison(connection)
+                return result
+            phase = _WriteTransactionPhase.COMMIT_CALL
+            connection.execute("COMMIT")
+            phase = _WriteTransactionPhase.COMMIT_RETURNED
+            if _transaction_active(connection):
+                raise self._unknown_commit_error()  # noqa: TRY301 - guarded sentinel
+            phase = _WriteTransactionPhase.COMMITTED
+            return _deliver_committed_result(result)
+        except BaseException as error:
+            poison_was_preexisting = self._poisoned
+            self._poisoned = True
+            replacement = self._settle_transaction_failure(
+                connection,
+                error,
+                phase=phase,
+                poison_was_preexisting=poison_was_preexisting,
+            )
+            if replacement is not None:
+                raise replacement from None
+            raise
+
+    def _begin_transaction(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        immediate: bool,
+    ) -> None:
+        if _transaction_active(connection):
+            self._poisoned = True
+            raise LedgerStorageError(
+                "TRANSACTION_STATE_UNCERTAIN",
+                "the SQLite connection was not in a clean transaction state",
+            )
+        statement = "BEGIN IMMEDIATE" if immediate else "BEGIN"
+        connection.execute(statement)
+        if not _transaction_active(connection):
+            self._poisoned = True
+            raise LedgerStorageError(
+                "TRANSACTION_STATE_UNCERTAIN",
+                "the SQLite transaction did not start in a known state",
+            )
+
+    def _settle_transaction_failure(
+        self,
+        connection: sqlite3.Connection,
+        error: BaseException,
+        *,
+        phase: _WriteTransactionPhase | None,
+        poison_was_preexisting: bool,
+    ) -> LedgerStorageError | None:
+        if poison_was_preexisting:
+            return None
+        if phase in (
+            _WriteTransactionPhase.COMMIT_RETURNED,
+            _WriteTransactionPhase.COMMITTED,
+        ):
+            return self._unknown_commit_error()
+        if phase is _WriteTransactionPhase.COMMIT_CALL:
+            try:
+                transaction_active = _transaction_active(connection)
+            except BaseException:
+                return self._unknown_commit_error()
+            if not transaction_active:
+                return self._unknown_commit_error()
+        self._rollback_or_poison(connection, recoverable_poison=True)
+        if isinstance(error, sqlite3.Error):
+            return _mapped_database_error(error)
+        return None
+
+    def _unknown_commit_error(self) -> LedgerStorageError:
+        self._poisoned = True
+        return LedgerStorageError(
+            "COMMIT_OUTCOME_UNKNOWN",
+            "the transition outcome is unknown; retry its command on a new connection",
+        )
+
+    def _rollback_or_poison(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        recoverable_poison: bool = False,
+    ) -> None:
+        was_poisoned = self._poisoned and not recoverable_poison
+        self._poisoned = True
+        try:
+            clean = _rollback_to_clean(connection)
+        except BaseException:
+            clean = False
+        if clean and not was_poisoned:
+            self._poisoned = False
+            return
+        raise LedgerStorageError(
+            "ROLLBACK_FAILED",
+            "the failed operation left the transaction state uncertain",
+        ) from None
+
     def close(self) -> None:
         """Close the owning-thread connection and its anchored descriptors."""
 
@@ -493,6 +888,11 @@ class SQLiteLedger:
                 "LEDGER_CLOSED",
                 "the ledger connection is already closed",
             )
+        if self._poisoned:
+            raise LedgerStorageError(
+                "CONNECTION_POISONED",
+                "the ledger connection must be closed and reopened",
+            )
         return self._connection
 
     def _assert_schema_cookie(self, connection: sqlite3.Connection) -> None:
@@ -505,6 +905,653 @@ class SQLiteLedger:
                 "MIGRATION_DRIFT",
                 "the storage schema changed while this connection was open",
             )
+
+
+def _create_intent(
+    *,
+    tenant_id: TenantId,
+    command_id: CommandId,
+    content: NoteContent,
+) -> _TransitionIntent:
+    _validate_identifier(tenant_id, "tenant_id")
+    _validate_identifier(command_id, "command_id")
+    _validated_content_values(content)
+    return _TransitionIntent(
+        tenant_id=tenant_id,
+        note_id=None,
+        command_id=command_id,
+        kind=EventKind.CREATED,
+        expected_revision=None,
+        content=content,
+        tombstone_reason=None,
+    )
+
+
+def _revise_intent(
+    *,
+    tenant_id: TenantId,
+    note_id: NoteId,
+    command_id: CommandId,
+    expected_revision: int,
+    content: NoteContent,
+) -> _TransitionIntent:
+    _validate_transition_identity(tenant_id, note_id, command_id)
+    _validate_expected_revision(expected_revision)
+    _validated_content_values(content)
+    return _TransitionIntent(
+        tenant_id=tenant_id,
+        note_id=note_id,
+        command_id=command_id,
+        kind=EventKind.REVISED,
+        expected_revision=expected_revision,
+        content=content,
+        tombstone_reason=None,
+    )
+
+
+def _tombstone_intent(
+    *,
+    tenant_id: TenantId,
+    note_id: NoteId,
+    command_id: CommandId,
+    expected_revision: int,
+    reason: TombstoneReason,
+) -> _TransitionIntent:
+    _validate_transition_identity(tenant_id, note_id, command_id)
+    _validate_expected_revision(expected_revision)
+    if type(reason) is not TombstoneReason:
+        raise ContractViolation(
+            "INVALID_TOMBSTONE_REASON",
+            "tombstone reason is not supported",
+        )
+    return _TransitionIntent(
+        tenant_id=tenant_id,
+        note_id=note_id,
+        command_id=command_id,
+        kind=EventKind.TOMBSTONED,
+        expected_revision=expected_revision,
+        content=None,
+        tombstone_reason=reason,
+    )
+
+
+def _validate_transition_identity(
+    tenant_id: TenantId,
+    note_id: NoteId,
+    command_id: CommandId,
+) -> None:
+    _validate_tenant_note(tenant_id, note_id)
+    _validate_identifier(command_id, "command_id")
+
+
+def _validate_tenant_note(tenant_id: TenantId, note_id: NoteId) -> None:
+    _validate_identifier(tenant_id, "tenant_id")
+    _validate_identifier(note_id, "note_id")
+
+
+def _validate_expected_revision(value: object) -> int:
+    if type(value) is not int or not 1 <= value <= MAX_REVISION:
+        raise LedgerStorageError(
+            "INVALID_EXPECTED_REVISION",
+            "expected revision must be a bounded positive exact integer",
+        )
+    return value
+
+
+def _validate_history_cursor(value: object) -> int:
+    if type(value) is not int or not 0 <= value <= MAX_REVISION:
+        raise LedgerStorageError(
+            "INVALID_HISTORY_CURSOR",
+            "history cursor must be a bounded non-negative exact integer",
+        )
+    return value
+
+
+def _validate_history_limit(value: object) -> int:
+    if type(value) is not int or not 1 <= value <= MAX_PAGE_SIZE:
+        raise LedgerStorageError(
+            "INVALID_HISTORY_LIMIT",
+            "history limit must be an exact integer in the supported range",
+        )
+    return value
+
+
+def _validate_recorded_at_us(value: object, *, field: str) -> int:
+    if type(value) is not int or not 0 <= value <= MAX_RECORDED_AT_US:
+        raise LedgerStorageError(
+            "CLOCK_OUT_OF_RANGE",
+            f"{field} is outside the supported timestamp range",
+        )
+    return value
+
+
+def _utc_now_us() -> int:
+    return time.time_ns() // 1_000
+
+
+def _new_note_id() -> NoteId:
+    return new_note_id()
+
+
+def _next_recorded_at_us(parent: LedgerEvent | None) -> int:
+    try:
+        current = _utc_now_us()
+    except Exception:
+        raise LedgerStorageError(
+            "CLOCK_UNAVAILABLE",
+            "the storage clock is unavailable",
+        ) from None
+    current = _validate_recorded_at_us(current, field="storage clock")
+    if parent is None:
+        return current
+    return max(current, parent.recorded_at_us)
+
+
+def _transition_in_transaction(
+    connection: sqlite3.Connection,
+    intent: _TransitionIntent,
+) -> TransitionResult:
+    existing = _load_command_event(
+        connection,
+        tenant_id=intent.tenant_id,
+        command_id=intent.command_id,
+    )
+    if existing is not None:
+        if not _event_matches_intent(existing, intent):
+            raise LedgerStorageError(
+                "IDEMPOTENCY_CONFLICT",
+                "the command identifier was already used for another intent",
+            )
+        _verify_replayed_projection(connection, existing)
+        return TransitionResult(event=existing, replayed=True)
+
+    if intent.kind is EventKind.CREATED:
+        event = _create_event_for_intent(connection, intent)
+        _insert_event(connection, event)
+        _insert_head(connection, event)
+    else:
+        note_id = cast(NoteId, intent.note_id)
+        parent = _load_head(connection, intent.tenant_id, note_id)
+        if parent is None:
+            raise LedgerStorageError(
+                "NOTE_NOT_FOUND",
+                "the tenant-scoped note does not exist",
+            )
+        if parent.kind is EventKind.TOMBSTONED:
+            raise LedgerStorageError(
+                "NOTE_TOMBSTONED",
+                "the tenant-scoped note is already tombstoned",
+            )
+        if parent.revision != intent.expected_revision:
+            raise LedgerStorageError(
+                "REVISION_CONFLICT",
+                "the note head no longer matches the expected revision",
+            )
+        if parent.revision >= MAX_REVISION:
+            raise ContractViolation(
+                "REVISION_EXHAUSTED",
+                "the note revision counter cannot advance",
+            )
+        timestamp = _next_recorded_at_us(parent)
+        if intent.kind is EventKind.REVISED:
+            event = parent.revise(
+                command_id=intent.command_id,
+                recorded_at_us=timestamp,
+                content=cast(NoteContent, intent.content),
+            )
+        else:
+            event = parent.tombstone(
+                command_id=intent.command_id,
+                recorded_at_us=timestamp,
+                reason=cast(TombstoneReason, intent.tombstone_reason),
+            )
+        _insert_event(connection, event)
+        _cas_head(connection, previous=parent, event=event)
+
+    stored = _load_event(
+        connection,
+        event.tenant_id,
+        event.note_id,
+        event.revision,
+    )
+    head = _load_head(connection, event.tenant_id, event.note_id)
+    if stored != event or head != event:
+        raise LedgerStorageError(
+            "DATABASE_INTEGRITY",
+            "the committed transition candidates failed exact verification",
+        )
+    return TransitionResult(event=event, replayed=False)
+
+
+def _create_event_for_intent(
+    connection: sqlite3.Connection,
+    intent: _TransitionIntent,
+) -> LedgerEvent:
+    note_id: NoteId | None = None
+    for _attempt in range(_NOTE_ID_GENERATION_ATTEMPTS):
+        try:
+            candidate = _new_note_id()
+            _validate_identifier(candidate, "note_id")
+        except Exception:
+            raise LedgerStorageError(
+                "ID_GENERATION_FAILED",
+                "a storage-owned note identifier could not be generated",
+            ) from None
+        if not _note_storage_exists(connection, intent.tenant_id, candidate):
+            note_id = candidate
+            break
+    if note_id is None:
+        raise LedgerStorageError(
+            "ID_GENERATION_EXHAUSTED",
+            "storage-owned note identifier retries were exhausted",
+        )
+    return LedgerEvent.create(
+        tenant_id=intent.tenant_id,
+        note_id=note_id,
+        command_id=intent.command_id,
+        recorded_at_us=_next_recorded_at_us(None),
+        content=cast(NoteContent, intent.content),
+    )
+
+
+def _event_matches_intent(event: LedgerEvent, intent: _TransitionIntent) -> bool:
+    if (
+        event.tenant_id != intent.tenant_id
+        or event.command_id != intent.command_id
+        or event.kind is not intent.kind
+    ):
+        return False
+    if intent.kind is EventKind.CREATED:
+        return event.content == intent.content
+    return (
+        event.note_id == intent.note_id
+        and event.revision - 1 == intent.expected_revision
+        and event.content == intent.content
+        and event.tombstone_reason == intent.tombstone_reason
+    )
+
+
+def _verify_replayed_projection(
+    connection: sqlite3.Connection,
+    event: LedgerEvent,
+) -> None:
+    head = _load_head(connection, event.tenant_id, event.note_id)
+    if head is None or head.revision < event.revision:
+        raise LedgerStorageError(
+            "DATABASE_INTEGRITY",
+            "the command event is not represented by a valid note projection",
+        )
+    if event.kind is EventKind.TOMBSTONED and head != event:
+        raise LedgerStorageError(
+            "DATABASE_INTEGRITY",
+            "a terminal command event is not the current note head",
+        )
+
+
+def _insert_event(connection: sqlite3.Connection, event: LedgerEvent) -> None:
+    previous_revision = None if event.revision == 1 else event.revision - 1
+    connection.execute(
+        """
+        INSERT INTO ledger_events(
+            tenant_id,
+            note_id,
+            revision,
+            command_id,
+            recorded_at_us,
+            kind,
+            previous_revision,
+            previous_event_hash,
+            event_hash,
+            schema_version,
+            event_bytes
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            event.tenant_id,
+            event.note_id,
+            event.revision,
+            event.command_id,
+            event.recorded_at_us,
+            event.kind.value,
+            previous_revision,
+            event.previous_event_hash,
+            event.event_hash,
+            event.schema_version,
+            event.to_bytes(),
+        ),
+    )
+
+
+def _insert_head(connection: sqlite3.Connection, event: LedgerEvent) -> None:
+    connection.execute(
+        """
+        INSERT INTO note_heads(
+            tenant_id,
+            note_id,
+            revision,
+            event_hash,
+            updated_at_us,
+            is_tombstoned
+        )
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        (
+            event.tenant_id,
+            event.note_id,
+            event.revision,
+            event.event_hash,
+            event.recorded_at_us,
+            int(event.kind is EventKind.TOMBSTONED),
+        ),
+    )
+
+
+def _cas_head(
+    connection: sqlite3.Connection,
+    *,
+    previous: LedgerEvent,
+    event: LedgerEvent,
+) -> None:
+    cursor = connection.execute(
+        """
+        UPDATE note_heads
+        SET revision = ?,
+            event_hash = ?,
+            updated_at_us = ?,
+            is_tombstoned = ?
+        WHERE tenant_id = ?
+          AND note_id = ?
+          AND revision = ?
+          AND event_hash = ?
+          AND updated_at_us = ?
+          AND is_tombstoned = 0
+        """,
+        (
+            event.revision,
+            event.event_hash,
+            event.recorded_at_us,
+            int(event.kind is EventKind.TOMBSTONED),
+            previous.tenant_id,
+            previous.note_id,
+            previous.revision,
+            previous.event_hash,
+            previous.recorded_at_us,
+        ),
+    )
+    if cursor.rowcount != 1:
+        raise LedgerStorageError(
+            "DATABASE_INTEGRITY",
+            "the note head compare-and-swap did not update exactly one row",
+        )
+
+
+def _note_storage_exists(
+    connection: sqlite3.Connection,
+    tenant_id: TenantId,
+    note_id: NoteId,
+) -> bool:
+    row = connection.execute(
+        """
+        SELECT EXISTS(
+            SELECT 1
+            FROM ledger_events
+            WHERE tenant_id = ? AND note_id = ?
+            UNION ALL
+            SELECT 1
+            FROM note_heads
+            WHERE tenant_id = ? AND note_id = ?
+        )
+        """,
+        (tenant_id, note_id, tenant_id, note_id),
+    ).fetchone()
+    if row is None or type(row[0]) is not int or row[0] not in (0, 1):
+        raise LedgerStorageError(
+            "DATABASE_INTEGRITY",
+            "the note identifier inventory could not be verified",
+        )
+    return bool(row[0])
+
+
+def _load_command_event(
+    connection: sqlite3.Connection,
+    *,
+    tenant_id: TenantId,
+    command_id: CommandId,
+) -> LedgerEvent | None:
+    row = connection.execute(
+        _LOAD_COMMAND_EVENT_SQL,
+        (tenant_id, command_id),
+    ).fetchone()
+    return None if row is None else _decode_event_row(row)
+
+
+def _load_event(
+    connection: sqlite3.Connection,
+    tenant_id: TenantId,
+    note_id: NoteId,
+    revision: int,
+) -> LedgerEvent | None:
+    row = connection.execute(
+        _LOAD_EVENT_SQL,
+        (tenant_id, note_id, revision),
+    ).fetchone()
+    return None if row is None else _decode_event_row(row)
+
+
+def _load_head(
+    connection: sqlite3.Connection,
+    tenant_id: TenantId,
+    note_id: NoteId,
+) -> LedgerEvent | None:
+    row = connection.execute(
+        _LOAD_HEAD_SQL,
+        (tenant_id, note_id, tenant_id, note_id),
+    ).fetchone()
+    if row is None:
+        raise LedgerStorageError(
+            "DATABASE_INTEGRITY",
+            "the note projection probe returned no result",
+        )
+    if row["head_tenant_id"] is None:
+        if row["latest_revision"] is not None or row["latest_event_hash"] is not None:
+            raise LedgerStorageError(
+                "DATABASE_INTEGRITY",
+                "ledger events exist without a note head",
+            )
+        return None
+    return _decode_head_row(row)
+
+
+def _decode_event_row(row: sqlite3.Row) -> LedgerEvent:
+    raw = row["event_bytes"]
+    if type(raw) is not bytes:
+        raise LedgerStorageError(
+            "DATABASE_INTEGRITY",
+            "stored event bytes are not an exact canonical blob",
+        )
+    try:
+        event = decode_event(raw)
+    except ContractViolation:
+        raise LedgerStorageError(
+            "DATABASE_INTEGRITY",
+            "stored event bytes failed canonical verification",
+        ) from None
+    expected_previous_revision = None if event.revision == 1 else event.revision - 1
+    expected = (
+        event.tenant_id,
+        event.note_id,
+        event.revision,
+        event.command_id,
+        event.recorded_at_us,
+        event.kind.value,
+        expected_previous_revision,
+        event.previous_event_hash,
+        event.event_hash,
+        event.schema_version,
+        event.to_bytes(),
+    )
+    stored = (
+        row["tenant_id"],
+        row["note_id"],
+        row["revision"],
+        row["command_id"],
+        row["recorded_at_us"],
+        row["kind"],
+        row["previous_revision"],
+        row["previous_event_hash"],
+        row["event_hash"],
+        row["schema_version"],
+        raw,
+    )
+    if stored != expected:
+        raise LedgerStorageError(
+            "DATABASE_INTEGRITY",
+            "stored event columns do not match the canonical envelope",
+        )
+    return event
+
+
+def _decode_head_row(row: sqlite3.Row) -> LedgerEvent:
+    event = _decode_event_row(row)
+    head = (
+        row["head_tenant_id"],
+        row["head_note_id"],
+        row["head_revision"],
+        row["head_event_hash"],
+        row["head_updated_at_us"],
+        row["head_is_tombstoned"],
+    )
+    expected = (
+        event.tenant_id,
+        event.note_id,
+        event.revision,
+        event.event_hash,
+        event.recorded_at_us,
+        int(event.kind is EventKind.TOMBSTONED),
+    )
+    if (
+        head != expected
+        or row["latest_revision"] != event.revision
+        or row["latest_event_hash"] != event.event_hash
+    ):
+        raise LedgerStorageError(
+            "DATABASE_INTEGRITY",
+            "the note head does not match the latest canonical event",
+        )
+    return event
+
+
+def _history_in_transaction(
+    connection: sqlite3.Connection,
+    *,
+    tenant_id: TenantId,
+    note_id: NoteId,
+    after_revision: int,
+    limit: int,
+) -> HistoryPage | None:
+    head = _load_head(connection, tenant_id, note_id)
+    if head is None:
+        return None
+    if after_revision > head.revision:
+        return HistoryPage(
+            tenant_id=tenant_id,
+            note_id=note_id,
+            events=(),
+            next_after_revision=None,
+        )
+
+    include_anchor = after_revision > 0
+    first_revision = after_revision if include_anchor else 1
+    fetch_limit = limit + 1 + int(include_anchor)
+    rows = connection.execute(
+        _LOAD_HISTORY_SQL,
+        (tenant_id, note_id, first_revision, fetch_limit),
+    ).fetchall()
+    decoded = tuple(_decode_event_row(row) for row in rows)
+    if not decoded or decoded[0].revision != first_revision:
+        raise LedgerStorageError(
+            "DATABASE_INTEGRITY",
+            "the history page is missing its required chain anchor",
+        )
+    _verify_event_sequence(decoded)
+
+    candidates = decoded[1:] if include_anchor else decoded
+    has_more = len(candidates) > limit
+    events = candidates[:limit]
+    if not has_more:
+        last = events[-1] if events else decoded[0]
+        if last != head:
+            raise LedgerStorageError(
+                "DATABASE_INTEGRITY",
+                "the final history page does not end at the current note head",
+            )
+    return HistoryPage(
+        tenant_id=tenant_id,
+        note_id=note_id,
+        events=events,
+        next_after_revision=events[-1].revision if has_more and events else None,
+    )
+
+
+def _verify_event_sequence(events: tuple[LedgerEvent, ...]) -> None:
+    for previous, event in pairwise(events):
+        if (
+            previous.kind is EventKind.TOMBSTONED
+            or event.revision != previous.revision + 1
+            or event.previous_event_hash != previous.event_hash
+            or event.recorded_at_us < previous.recorded_at_us
+        ):
+            raise LedgerStorageError(
+                "DATABASE_INTEGRITY",
+                "stored history does not form one continuous terminal-safe chain",
+            )
+
+
+def _rollback_to_clean(connection: sqlite3.Connection) -> bool:
+    try:
+        if _transaction_active(connection):
+            connection.execute("ROLLBACK")
+        return not _transaction_active(connection)
+    except BaseException:
+        return False
+
+
+def _transaction_active(connection: sqlite3.Connection) -> bool:
+    return connection.in_transaction
+
+
+def _deliver_committed_result(result: TransitionResult) -> TransitionResult:
+    """Keep result delivery as an explicit fault boundary inside the write guard."""
+
+    return result
+
+
+def _mapped_database_error(error: sqlite3.Error) -> LedgerStorageError:
+    error_code = getattr(error, "sqlite_errorcode", None)
+    primary = error_code & 0xFF if type(error_code) is int else None
+    if primary in (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED):
+        return LedgerStorageError("LEDGER_BUSY", "the SQLite writer is currently busy")
+    if primary == sqlite3.SQLITE_FULL:
+        return LedgerStorageError("DATABASE_FULL", "the SQLite storage is full")
+    if primary == sqlite3.SQLITE_READONLY:
+        return LedgerStorageError(
+            "DATABASE_READ_ONLY",
+            "the SQLite storage is not writable",
+        )
+    if primary in (
+        sqlite3.SQLITE_CONSTRAINT,
+        sqlite3.SQLITE_CORRUPT,
+        sqlite3.SQLITE_NOTADB,
+    ):
+        return LedgerStorageError(
+            "DATABASE_INTEGRITY",
+            "the SQLite operation violated a storage invariant",
+        )
+    return LedgerStorageError(
+        "DATABASE_OPERATION_FAILED",
+        "the SQLite operation could not be completed",
+    )
 
 
 def _validate_directory_argument(value: str | Path) -> Path:

@@ -1,8 +1,8 @@
 """Bounded, canonical note-event envelopes.
 
 This module deliberately contains no database or authorization adapter. It
-defines the values that a future storage boundary may accept and the only
-supported way to advance one note's event chain.
+defines the values accepted by the storage boundary and the only supported way
+to advance one note's event chain.
 """
 
 from __future__ import annotations

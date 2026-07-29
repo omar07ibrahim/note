@@ -2,8 +2,9 @@
 
 RecallLedger stores changes as tenant-scoped note events. This document
 describes the implemented event contract. The separate SQLite foundation can
-identify, migrate, and verify its storage format, but durable note mutation and
-query methods are not implemented yet.
+identify, migrate, and verify its storage format. Its atomic transition API now
+derives and persists these envelopes without accepting a client-authored event
+or timestamp.
 
 ## Identity and ownership
 
@@ -15,8 +16,8 @@ select a tenant.
 
 Successor factories accept a previous `LedgerEvent` and do not accept tenant or
 note identity again. This makes accidental identity drift harder in application
-code. Durable storage must still enforce tenant, note, revision, and predecessor
-constraints transactionally.
+code. Durable storage also enforces tenant, note, revision, predecessor, command
+idempotency, and head-projection constraints transactionally.
 
 ## Canonical envelope
 
@@ -75,13 +76,13 @@ Creation is revision 1 and has no predecessor. Revision and tombstone events
 must have a predecessor and a revision greater than one. Tombstones contain a
 bounded reason code but no title, body, or tags. Successor timestamps cannot
 move backwards relative to their parent, and an immediate successor cannot
-reuse its parent's command identifier. Durable storage will enforce command
+reuse its parent's command identifier. SQLite storage enforces command
 idempotency across the full tenant boundary.
 
 A tombstone is a logical projection instruction. It does not erase content
-from earlier events, backups, replicas, process memory, or storage media. The
-durable-ledger phase must define retention and compaction before RecallLedger
-can make any stronger deletion claim.
+from earlier events, backups, replicas, process memory, or storage media. A
+future retention and compaction layer is required before RecallLedger can make
+any stronger deletion claim.
 
 ## Integrity relationship
 
@@ -101,10 +102,13 @@ timestamp proof, branch-selection rule, or protection from an attacker who can
 replace both a ledger and its checkpoint. Trusting only the creation event is
 insufficient: multiple descendants can form valid forks, and a verifier with
 no expected latest tip cannot distinguish truncation from a shorter history.
-The durable layer must linearize predecessor and revision updates
-transactionally and define how authenticated latest checkpoints are published,
-retained, and compared. `recorded_at_us` is caller-supplied data until the
-storage transaction and authenticated adapter are implemented.
+The SQLite layer linearizes predecessor and revision updates transactionally,
+but a future authenticated adapter must still define how latest checkpoints are
+published, retained, and compared. The in-memory event factories accept
+`recorded_at_us` so canonical chains, imports, and tests can be deterministic.
+Public SQLite mutations do not: storage reads UTC microseconds after excluding
+replay and clamps a successor to at least its verified parent's timestamp. This
+is causal metadata, not a trusted timestamp proof.
 
 ## Text and resource policy
 
