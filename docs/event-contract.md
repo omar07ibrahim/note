@@ -1,8 +1,9 @@
 # Event contract v1
 
 RecallLedger stores changes as tenant-scoped note events. This document
-describes the implemented in-memory contract. It does not claim that the
-durable SQLite ledger exists yet.
+describes the implemented event contract. The separate SQLite foundation can
+identify, migrate, and verify its storage format, but durable note mutation and
+query methods are not implemented yet.
 
 ## Identity and ownership
 

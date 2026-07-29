@@ -1,0 +1,185 @@
+# SQLite storage boundary v1
+
+RecallLedger's first durable-storage slice defines how a local SQLite database
+is identified, migrated, opened, and checked. It does not yet expose note
+mutation, query, projection-rebuild, CLI, or authorization APIs.
+
+This module currently supports Linux/POSIX only. It depends on `fcntl`,
+`flock`, `O_DIRECTORY`, `O_NOFOLLOW`, and `register_at_fork`; Windows is not a
+supported storage target.
+
+## Deployment path contract
+
+The caller supplies one absolute deployment data directory. RecallLedger uses
+only two fixed basenames inside it:
+
+```text
+.recall-ledger.lock
+recall-ledger.sqlite3
+```
+
+The directory must already exist, be owned by the effective user, and have
+mode `0700`. The database and lock must be owner-owned regular files with mode
+`0600` and exactly one hard link. Existing SQLite `-wal`, `-shm`, and
+`-journal` sidecars receive the same checks. Symlinks, directories, FIFOs,
+devices, sockets, hard links, and group/other-accessible files fail closed.
+The lock and a newly absent database are created with `O_EXCL`, `O_NOFOLLOW`,
+and mode `0600`.
+
+The directory is trusted deployment configuration, never a request field.
+Python's standard `sqlite3` module cannot open SQLite from a prevalidated file
+descriptor or request `SQLITE_OPEN_NOFOLLOW`. RecallLedger uses directory-
+relative, no-following metadata checks and verifies pathname identity around
+`sqlite3.connect`. It never raw-opens an existing database or SQLite sidecar:
+closing such a descriptor can cancel POSIX locks owned by other SQLite
+connections in the same process. A newly created empty database descriptor is
+closed before SQLite connects. A process-wide lifecycle mutex serializes opens
+through resource registration, so another `SQLiteLedger` cannot enter that
+creation window. This boundary does not claim to defeat a hostile same-UID or
+root process, an in-process component that bypasses `SQLiteLedger`, or an
+attacker who can rename a writable ancestor directory. The operator must
+control the configured directory and its ancestors.
+
+## Cooperative runtime lock
+
+Every runtime holds a shared `flock` on the fixed lock file for the lifetime of
+its connection. During first-time initialization, the discovery connection is
+cleanly closed before the shared lock is released. RecallLedger then acquires a
+nonblocking exclusive lock, opens a migration connection, rechecks that the
+database is still empty inside `BEGIN IMMEDIATE`, and applies the migration.
+That connection is cleanly closed before the exclusive lock is released; only
+then does the runtime reacquire a shared lock and open its final connection.
+An uncertain close retains the current lock and connection in a process-local
+quarantine instead of crossing a lock transition.
+
+The lock is cooperative. A process that ignores it and edits the database
+directly is outside the writer API, although schema-cookie, exact-schema,
+foreign-key, canonical-event, and projection checks in later layers are
+designed to detect resulting drift. A failed lock acquisition is bounded and
+does not retry forever.
+
+## Format and migration identity
+
+SQLite `application_id` is the integer encoding of `RCLD`; `user_version` is
+storage schema version 1. These are format discriminators, not authentication
+or integrity proofs.
+
+An empty database is initialized only when all three facts hold:
+
+- `application_id = 0`;
+- `user_version = 0`;
+- `sqlite_schema` contains no application objects.
+
+A nonempty unclaimed database, foreign application ID, missing/old migration,
+future schema, unexpected object, altered SQL definition, checksum mismatch,
+failed `quick_check`, or foreign-key violation is rejected. Migration
+statements execute one at a time—never through `executescript`—inside an
+explicit transaction. The stored migration row contains a domain-separated
+SHA-256 of the exact ordered SQL payload. Application ID and user version are
+written last, the complete schema is checked before commit, and failures
+explicitly roll back.
+
+The current schema contains:
+
+- append-only-intended `ledger_events` rows keyed by
+  `(tenant_id, note_id, revision)`;
+- tenant-wide command uniqueness through `(tenant_id, command_id)`;
+- an exact predecessor foreign key for non-root events;
+- a bounded nonempty event-byte slot plus relational identity/index columns;
+- one content-free `note_heads` projection pointer per tenant/note;
+- deterministic keyset-pagination indexes for live and all-note views;
+- a closed `schema_migrations` ledger.
+
+The tables are `STRICT` and `WITHOUT ROWID`. The upcoming transaction layer
+will derive events from a storage-loaded head, validate canonical bytes against
+every duplicated column, insert an event, and compare-and-swap the head in one
+`BEGIN IMMEDIATE` transaction. This foundation does not claim those semantic or
+append-only operations are implemented yet; direct SQL by a process that
+ignores the API remains outside the invariant boundary.
+
+## Connection profile
+
+Every connection is autocommit-mode with manual transaction control,
+`check_same_thread=True`, and URI parsing disabled. It is bound to the opening
+process and thread. Reuse after `fork`, cross-thread use, or use after close
+fails before a database operation.
+
+Open ledger objects must be closed before `fork`. SQLite explicitly forbids
+using or even calling `sqlite3_close()` on a parent-opened connection in the
+child. RecallLedger's child hook therefore makes an accidentally inherited
+handle inaccessible, retains it in a process-local quarantine without invoking
+SQLite, and closes only RecallLedger's separate lock and directory anchors.
+The child must then immediately `exec` or call `os._exit`; continuing Python,
+garbage collection of the quarantine, `sys.exit`, and normal interpreter
+teardown are unsupported. Prefer multiprocessing's `spawn` start method.
+
+The following profile is set and read back:
+
+```text
+foreign_keys      ON
+trusted_schema    OFF
+cell_size_check   ON
+mmap_size         0
+read_uncommitted  OFF
+locking_mode      NORMAL
+journal_mode      DELETE
+synchronous       FULL
+busy_timeout      bounded: 0..60000 ms
+```
+
+SQLite runtime limits disable attached databases and worker threads, set
+trigger depth to zero, and cap SQL length, values, columns, parameters,
+compound selects, and expression depth. Where Python exposes SQLite defensive
+configuration, RecallLedger also enables defensive mode and disables trusted
+schema, double-quoted string literals, extension loading, writable schema,
+triggers, and views.
+
+Rollback-journal `DELETE` mode is intentional. SQLite
+[disclosed a rare multi-connection WAL-reset corruption race](https://www.sqlite.org/wal.html#the_wal_reset_bug)
+affecting 3.7.0 through 3.51.2, with only specific patched backports. DELETE
+mode preserves the broader SQLite 3.37+ stdlib contract without pretending the
+current runtime is patched.
+`FULL` synchronous mode relies on the operating system, filesystem, and
+hardware honoring sync requests; it is not a power-loss attestation.
+
+Schema verification includes `quick_check` and `foreign_key_check`, so opening
+cost grows with the ledger. `SQLiteLedger` is intended to be long-lived; a
+future explicit maintenance API will separate deep scans from routine opens.
+The same process serializes open, close, finalizer ownership transfer, and fork
+snapshots, so a slow open delays those lifecycle operations rather than
+exposing an unregistered SQLite handle.
+
+Explicit context-manager or `close()` ownership is required. Garbage-collection
+cleanup is only a last-resort safety net: it never waits on a lifecycle
+operation already in progress, and it retains a safe process-lifetime
+quarantine when ownership or connection closure is uncertain.
+
+## Data and deletion non-claims
+
+The event table is designed to retain earlier event bytes after a logical
+tombstone. SQLite pages, WAL, journals, backups, replicas, filesystem
+snapshots, storage media, and process memory may retain older note content.
+Neither this storage foundation nor a future tombstone is physical erasure.
+
+Application IDs, migration hashes, event hashes, and schema fingerprints are
+unsigned consistency relationships. They do not authenticate Omar, authorize a
+tenant, attest the host, prevent a database owner from replacing all related
+state, or create an authenticated latest checkpoint.
+
+## Reproduce the current gate
+
+From the repository root:
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install --editable '.[dev]'
+.venv/bin/pytest
+.venv/bin/ruff check .
+.venv/bin/ruff format --check .
+.venv/bin/mypy
+```
+
+The tests exercise fresh initialization and reopen, exact migration/profile
+checks, cooperative-lock behavior, unsafe file types and permissions, foreign
+and future databases, migration rollback, live schema drift, thread/process
+ownership, safe error surfaces, and every source/branch path.

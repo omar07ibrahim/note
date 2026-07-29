@@ -2,15 +2,23 @@
 
 ## Supported state
 
-RecallLedger is in phase 1. The current tree implements only an in-memory event
-contract; it has no durable storage or network-facing application. The
-historical shared-state Telegram notes bot is unsupported and must not be
-deployed.
+RecallLedger is in phase 2a. The current tree implements an in-memory event
+contract and a versioned SQLite open/migration foundation, but no durable note
+mutation/query API or network-facing application. The historical shared-state
+Telegram notes bot is unsupported and must not be deployed.
 
 Canonical event parsing, text bounds, strict identifier forms, content-free
-tombstones, and note-local hash transitions are implemented. Storage,
-authorization, indexing, backup, adapter, and erasure controls below remain
-requirements for future layers rather than current claims.
+tombstones, note-local hash transitions, secure fixed-name file preflight,
+cooperative migration locking, exact schema checks, and the defensive
+connection profile are implemented. Atomic note transitions, authorization,
+indexing, backup, adapter, and erasure controls below remain requirements for
+future layers rather than current claims. See
+[docs/storage-boundary.md](docs/storage-boundary.md) for the exact SQLite
+deployment assumptions and non-claims.
+
+The storage module currently supports Linux/POSIX deployments only. Close all
+ledger connections before `fork`; a child that accidentally inherits one must
+immediately `exec` or call `os._exit` without using or finalizing it.
 
 ## Primary trust boundaries
 

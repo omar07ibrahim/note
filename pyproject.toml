@@ -1,11 +1,11 @@
 [build-system]
-requires = ["setuptools>=77"]
+requires = ["setuptools==83.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "recall-ledger"
 version = "0.1.0"
-description = "Tenant-isolated event contracts for local-first AI memory"
+description = "Tenant-isolated event contracts and SQLite foundations for local-first AI memory"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
@@ -13,12 +13,18 @@ license-files = ["LICENSE"]
 authors = [{ name = "Omar Ibrahim" }]
 classifiers = [
   "Development Status :: 2 - Pre-Alpha",
+  "Operating System :: POSIX :: Linux",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Typing :: Typed",
 ]
 dependencies = []
+
+[project.urls]
+Repository = "https://github.com/omar07ibrahim/note"
+Issues = "https://github.com/omar07ibrahim/note/issues"
+Documentation = "https://github.com/omar07ibrahim/note#readme"
 
 [project.optional-dependencies]
 dev = [
@@ -27,6 +33,7 @@ dev = [
   "pytest==8.4.1",
   "pytest-cov==6.2.1",
   "ruff==0.12.5",
+  "setuptools==83.0.0",
 ]
 
 [tool.setuptools]

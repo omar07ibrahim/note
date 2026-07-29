@@ -8,10 +8,16 @@ measured hybrid retrieval.
 
 It is not currently a Telegram bot or a generic CRUD application.
 
-> **Phase 1 — event contract.** The current tree implements bounded,
-> canonical, tenant-scoped note-event envelopes and note-local hash-chain
-> transitions. No durable storage engine, authorization adapter, search API,
-> model integration, benchmark, or user interface is claimed yet.
+> **Phase 2a — SQLite foundation.** The current tree combines bounded,
+> canonical, tenant-scoped note events with a versioned, locked, fail-closed
+> SQLite open/migration boundary. Atomic note mutation and query methods are
+> the next slice; no authorization adapter, search API, model integration,
+> benchmark, CLI, or user interface is claimed yet.
+
+The storage slice currently supports Linux/POSIX deployments only. Its
+`fcntl`, `flock`, `O_DIRECTORY`, `O_NOFOLLOW`, and fork-safety contract is
+explicit rather than pretending to be portable across incompatible file
+semantics.
 
 ## Why the old design was retired
 
@@ -62,6 +68,16 @@ from the previous event instead of accepting either value again. Envelopes use
 strict canonical JSON, domain-separated SHA-256 links, exact types, closed
 keys, strict UTF-8, and explicit resource bounds.
 
+`recall_ledger.storage` now establishes the durable format boundary: a trusted
+absolute `0700` data directory, fixed owner-only database and cooperative-lock
+files, SQLite 3.37+ `STRICT` tables, exact checksummed migrations, closed schema
+validation, foreign-key checks, a bounded defensive connection profile,
+rollback journaling with `synchronous=FULL`, and process/thread ownership. The
+rollback journal avoids the known multi-connection WAL-reset corruption window
+in unpatched SQLite runtimes. It deliberately exposes no note-write API in this
+slice. The exact guarantees, deployment preconditions, and non-claims are in the
+[SQLite storage boundary](docs/storage-boundary.md).
+
 Hashes reveal mutation only when a verifier holds an authenticated latest
 checkpoint or expected tip. Trusting the creation event alone does not detect
 valid forks or truncation, and hashes do not prove authorization or make an
@@ -69,9 +85,9 @@ attacker-controlled ledger trustworthy. Details and the exact schema are in
 [the event contract](docs/event-contract.md).
 
 ```bash
-python -m venv .venv
+python3 -m venv .venv
 . .venv/bin/activate
-python -m pip install -e '.[dev]'
+python3 -m pip install -e '.[dev]'
 pytest
 ruff check .
 ruff format --check .
