@@ -45,6 +45,9 @@ EXPECTED_OUTPUTS = {
 EXPECTED_VISUAL_TREE = {
     Path("README.md"),
     Path("architecture-workflow.svg"),
+    Path("fixtures/cli-content-stale.json"),
+    Path("fixtures/cli-content-v1.json"),
+    Path("fixtures/cli-content-v2.json"),
     Path("sources/architecture-workflow.v1.json"),
     Path("sources/transaction-output-retry.v1.json"),
     Path("transaction-output-retry.svg"),
@@ -953,9 +956,14 @@ def test_sdist_carries_self_contained_visual_renderer(tmp_path: Path) -> None:
             path for path in file_members if path.startswith("docs/visuals/")
         } == expected_visual_members
         required_review_files = {
+            "tests/test_cli_evidence.py",
+            "tests/test_cli_evidence_hardening.py",
             "tests/test_visual_evidence.py",
             "tests/test_visual_renderer_hardening.py",
             "tools/__init__.py",
+            "tools/capture_cli_evidence.py",
+            "tools/cli_evidence_contract.py",
+            "tools/render_cli_evidence.py",
             "tools/render_visuals.py",
         }
         assert required_review_files <= file_members.keys()
@@ -977,7 +985,14 @@ def test_sdist_carries_self_contained_visual_renderer(tmp_path: Path) -> None:
         [
             sys.executable,
             "-c",
-            ("from tools import render_visuals;assert len(render_visuals.render_sources()) == 2"),
+            (
+                "from tools import capture_cli_evidence,cli_evidence_contract,"
+                "render_cli_evidence,render_visuals;"
+                "assert capture_cli_evidence.EXPECTED_WHEEL_NAME.endswith('.whl');"
+                "assert len(cli_evidence_contract.FIXTURE_FILES)==3;"
+                "assert len(render_cli_evidence.OUTPUT_NAMES)==2;"
+                "assert len(render_visuals.render_sources())==2"
+            ),
         ],
         cwd=extracted_root,
         check=False,

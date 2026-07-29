@@ -2,12 +2,12 @@
 
 ## Supported state
 
-RecallLedger is in phase 2b. The current tree implements an in-memory event
-contract, a versioned SQLite boundary, and atomic tenant-scoped create, revise,
-tombstone, head, and history operations. It has no authenticated adapter,
-retrieval index, model boundary, CLI, or network-facing application. The
-historical shared-state Telegram notes bot is unsupported and must not be
-deployed.
+RecallLedger is in phase 2c. The current tree implements an in-memory event
+contract, a versioned SQLite boundary, atomic tenant-scoped create, revise,
+tombstone, head, and history operations, and an installed local operator CLI.
+It has no authenticated adapter, retrieval index, model boundary, or
+network-facing application. The historical shared-state Telegram notes bot is
+unsupported and must not be deployed.
 
 Canonical event parsing, text bounds, strict identifier forms, content-free
 tombstones, note-local hash transitions, secure fixed-name file preflight,
@@ -22,6 +22,14 @@ future layers rather than current claims. See
 deployment assumptions and non-claims, and
 [docs/transaction-contract.md](docs/transaction-contract.md) for mutation and
 read semantics.
+
+The CLI requires an existing absolute operator-owned `0700` data directory.
+Its `--tenant-id` value is explicit trusted caller context, not proof of
+identity or an authorization token. Content is accepted through a bounded file
+or standard input so note text need not appear in process arguments. Successful
+JSON/JSONL output can contain complete note content and identifiers and must be
+handled as sensitive data. Error output is deliberately bounded and does not
+reflect rejected argument values or internal exception details.
 
 The storage module currently supports Linux/POSIX deployments only. Close all
 ledger connections before `fork`; a child that accidentally inherits one must

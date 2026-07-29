@@ -8,11 +8,12 @@ measured hybrid retrieval.
 
 It is not currently a Telegram bot or a generic CRUD application.
 
-> **Phase 2b — atomic ledger.** The current tree combines bounded, canonical,
-> tenant-scoped note events with a versioned, locked SQLite boundary and
-> transactional create, revise, tombstone, head, and history operations. No
-> authorization adapter, search API, model integration, benchmark, CLI, or
-> user interface is claimed yet.
+> **Phase 2c — installed operator CLI.** The current tree combines bounded,
+> canonical, tenant-scoped note events with a versioned, locked SQLite
+> boundary, transactional create/revise/tombstone/head/history operations, and
+> an installed `recall-ledger` console script with canonical JSON/JSONL output
+> and stable exit categories. No authorization adapter, search API, model
+> integration, benchmark, or user interface is claimed yet.
 
 The storage slice currently supports Linux/POSIX deployments only. Its
 `fcntl`, `flock`, `O_DIRECTORY`, `O_NOFOLLOW`, and fork-safety contract is
@@ -51,10 +52,11 @@ Development will proceed in reviewable layers:
 5. **Verifiable deletion** — tombstones, projection/index removal, backup and
    retention boundaries, and evidence showing what deletion does and does not
    erase.
-6. **Adapters and evidence** — thin authenticated adapters, including a
-   possible Telegram interface, followed by real CLI and UI captures,
-   architecture and retrieval diagrams, source-derived evaluation plots, and
-   a reproducible end-to-end recording.
+6. **Adapters and evidence** — the installed operator CLI is the first thin
+   adapter. Authenticated network adapters, including a possible Telegram
+   interface, come later. Executable paths are documented with real captures,
+   source-bound diagrams, source-derived evaluation plots, and reproducible
+   end-to-end recordings.
 
 Optional LLM or embedding integrations must use free/local implementations by
 default and remain outside the correctness boundary of storage, ownership, and
@@ -101,6 +103,15 @@ flowchart LR
     L --> M[COMMIT and prove autocommit]
 ```
 
+`recall_ledger.cli` is an installed, dependency-free operator boundary. It
+accepts an explicit trusted data directory and tenant context, reads note
+content from a bounded file or standard input, and emits one canonical JSON
+document per invocation. History can instead emit canonical JSONL. Mutations
+surface exact command replay, revision conflicts, busy/uncertain settlement,
+storage-safety failures, and output-delivery failures through documented exit
+categories and retry guidance. The CLI does not authenticate the supplied
+tenant identifier.
+
 The exact guarantees, deployment preconditions, failure states, and non-claims
 are in the [SQLite storage boundary](docs/storage-boundary.md) and
 [transaction contract](docs/transaction-contract.md).
@@ -110,6 +121,43 @@ checkpoint or expected tip. Trusting the creation event alone does not detect
 valid forks or truncation, and hashes do not prove authorization or make an
 attacker-controlled ledger trustworthy. Details and the exact schema are in
 [the event contract](docs/event-contract.md).
+
+## Install and operate
+
+Build the wheel with the pinned local toolchain, then install it into an empty
+environment without resolving runtime dependencies:
+
+```bash
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install '.[dev]'
+python -m build --wheel --no-isolation
+
+python3 -m venv .runtime
+.runtime/bin/python -m pip install --no-index --no-deps --no-compile \
+  dist/recall_ledger-0.1.0-py3-none-any.whl
+.runtime/bin/recall-ledger --help
+```
+
+The caller must create an existing absolute operator-owned `0700` data
+directory. Tenant IDs are trusted context, not credentials:
+
+```bash
+install -d -m 0700 ./local-ledger
+DATA_DIR="$(pwd -P)/local-ledger"
+
+.runtime/bin/recall-ledger \
+  --data-dir "$DATA_DIR" \
+  --tenant-id tn_11111111111111111111111111111111 \
+  create \
+  --command-id cmd_00000000000000000000000000000001 \
+  --content-file docs/visuals/fixtures/cli-content-v1.json
+```
+
+The synthetic IDs and content above are reproducible documentation fixtures;
+they are not credentials or user data.
+
+## Verify from source
 
 ```bash
 python3 -m venv .venv
@@ -123,10 +171,14 @@ mypy
 
 ## Evidence policy
 
-Visuals will be added only when the corresponding executable path exists.
+Visuals are committed only when the corresponding executable path exists.
 Each screenshot, diagram, plot, or recording must name its source fixture and
 regeneration command, pass a freshness check, and contain no private notes,
 identifiers, tokens, or personal data. Speculative mockups are not evidence.
+
+The current source-bound architecture and failure diagrams, their versioned
+inputs, regeneration commands, and non-claims are documented in
+[the visual evidence index](docs/visuals/README.md).
 
 Benchmarks will compare simple lexical and recency baselines before claiming
 that embeddings or an LLM improve retrieval. Evaluation fixtures will be
