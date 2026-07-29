@@ -8,9 +8,10 @@ measured hybrid retrieval.
 
 It is not currently a Telegram bot or a generic CRUD application.
 
-> **Phase 0 — safety reset.** The current tree contains documentation and
-> policy only. No storage engine, search API, model integration, bot adapter,
-> benchmark, or user interface is claimed yet.
+> **Phase 1 — event contract.** The current tree implements bounded,
+> canonical, tenant-scoped note-event envelopes and note-local hash-chain
+> transitions. No durable storage engine, authorization adapter, search API,
+> model integration, benchmark, or user interface is claimed yet.
 
 ## Why the old design was retired
 
@@ -52,6 +53,30 @@ Development will proceed in reviewable layers:
 Optional LLM or embedding integrations must use free/local implementations by
 default and remain outside the correctness boundary of storage, ownership, and
 deletion.
+
+## Implemented now
+
+`recall_ledger.events` provides an immutable event vocabulary for note creation,
+revision, and logical deletion. Successors inherit tenant and note identity
+from the previous event instead of accepting either value again. Envelopes use
+strict canonical JSON, domain-separated SHA-256 links, exact types, closed
+keys, strict UTF-8, and explicit resource bounds.
+
+Hashes reveal mutation only when a verifier holds an authenticated latest
+checkpoint or expected tip. Trusting the creation event alone does not detect
+valid forks or truncation, and hashes do not prove authorization or make an
+attacker-controlled ledger trustworthy. Details and the exact schema are in
+[the event contract](docs/event-contract.md).
+
+```bash
+python -m venv .venv
+. .venv/bin/activate
+python -m pip install -e '.[dev]'
+pytest
+ruff check .
+ruff format --check .
+mypy
+```
 
 ## Evidence policy
 

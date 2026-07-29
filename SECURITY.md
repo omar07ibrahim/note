@@ -2,12 +2,15 @@
 
 ## Supported state
 
-RecallLedger is in phase 0 and has no runnable application in the current tree.
-The historical shared-state Telegram notes bot is unsupported and must not be
+RecallLedger is in phase 1. The current tree implements only an in-memory event
+contract; it has no durable storage or network-facing application. The
+historical shared-state Telegram notes bot is unsupported and must not be
 deployed.
 
-The controls below are requirements for future implementation layers, not
-claims that those layers already exist.
+Canonical event parsing, text bounds, strict identifier forms, content-free
+tombstones, and note-local hash transitions are implemented. Storage,
+authorization, indexing, backup, adapter, and erasure controls below remain
+requirements for future layers rather than current claims.
 
 ## Primary trust boundaries
 
@@ -59,9 +62,13 @@ revision. A delete operation must distinguish logical tombstoning, active
 projection removal, index removal, backup retention, and cryptographic or
 physical erasure. The project must not claim more deletion than it can prove.
 
-Event and receipt hashes establish integrity relationships only when their
-roots are authenticated. They are not signatures or proof that an event was
-authorized.
+Event and receipt hashes establish integrity relationships only when a verifier
+has an authenticated latest checkpoint or expected tip. An authenticated
+creation event alone still permits valid-looking forks and truncation. Hashes
+do not select the authoritative branch, provide storage linearizability, act as
+signatures, or prove that an event was authorized. A durable implementation
+must combine transactional predecessor/revision constraints with an
+independently authenticated checkpoint policy.
 
 ## Reporting a vulnerability
 
