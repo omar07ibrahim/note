@@ -1517,6 +1517,7 @@ def _atomic_write(path: Path, payload: bytes) -> None:
             if count <= 0:
                 _fail("evidence output write made no progress")
             written += count
+        os.fchmod(descriptor, 0o644)
         os.fsync(descriptor)
         os.close(descriptor)
         descriptor = -1

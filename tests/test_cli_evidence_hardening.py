@@ -465,6 +465,7 @@ def test_capture_writer_is_atomic_and_rejects_symlink_or_hardlink_outputs(
     monkeypatch.setattr(capture, "DEFAULT_EVIDENCE_PATH", output)
     capture._atomic_write(output, b'{"safe":true}\n')
     assert output.read_bytes() == b'{"safe":true}\n'
+    assert output.stat().st_mode & 0o777 == 0o644
 
     output.unlink()
     target = tmp_path / "target"
@@ -535,9 +536,15 @@ def test_terminal_writer_rejects_noncanonical_name_and_symlink_output(
         render_cli_evidence._atomic_write("../escape.svg", b"<svg/>")
 
     filename = render_cli_evidence.OUTPUT_NAMES[0]
+    output = tmp_path / filename
+    render_cli_evidence._atomic_write(filename, b"<svg/>")
+    assert output.read_bytes() == b"<svg/>"
+    assert output.stat().st_mode & 0o777 == 0o644
+    output.unlink()
+
     target = tmp_path / "target.svg"
     target.write_text("unchanged", encoding="utf-8")
-    (tmp_path / filename).symlink_to(target)
+    output.symlink_to(target)
     with pytest.raises(render_cli_evidence.TerminalRenderError):
         render_cli_evidence._atomic_write(filename, b"<svg/>")
     assert target.read_text(encoding="utf-8") == "unchanged"

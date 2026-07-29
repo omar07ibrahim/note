@@ -314,6 +314,7 @@ def _atomic_write(filename: str, payload: bytes) -> None:
             if written <= 0:
                 _fail("terminal SVG write made no progress")
             offset += written
+        os.fchmod(descriptor, 0o644)
         os.fsync(descriptor)
         os.close(descriptor)
         descriptor = -1
