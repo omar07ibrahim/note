@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" data-entry="caller-context" role="img" aria-labelledby="architecture-workflow-title architecture-workflow-description">
+  <title id="architecture-workflow-title">RecallLedger implemented architecture</title>
+  <desc id="architecture-workflow-description">Source-derived architecture of the installed RecallLedger CLI, its bounded input and lifecycle dispatcher, tenant-scoped SQLiteLedger API, atomic transition coordinator, canonical event contract, verified reads, durable event log and head projection, and JSON or JSONL output. Tenant identity is trusted caller context, not authentication. Search, model integration, and a network service are not represented.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#35516f"/>
+    </marker>
+    <marker id="arrow-warning" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#b95d1a"/>
+    </marker>
+    <style>
+      text { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #182536; }
+      .canvas { fill: #fbfcfe; }
+      .header-rule { stroke: #d8e0ea; stroke-width: 2; }
+      .diagram-title { font-size: 34px; font-weight: 750; letter-spacing: -0.6px; }
+      .diagram-subtitle { font-size: 17px; fill: #526276; }
+      .lane rect { fill: #f7f9fc; stroke: #66768a; stroke-width: 1.5; }
+      .lane-label { font-size: 13px; font-weight: 750; letter-spacing: 1.4px; fill: #405166; }
+      .node rect, .note rect { stroke-width: 2; }
+      .node-primary rect { fill: #eaf2ff; stroke: #2f66b3; }
+      .node-strong rect { fill: #dbe9ff; stroke: #214f8c; }
+      .node-accent rect { fill: #fff4d8; stroke: #ae7617; }
+      .node-neutral rect { fill: #f5f7fa; stroke: #66768a; }
+      .node-storage rect { fill: #eef1f5; stroke: #455468; }
+      .node-output rect { fill: #f3f8ff; stroke: #5b7fb3; }
+      .node-warning rect { fill: #fff0e4; stroke: #b95d1a; }
+      .node-title, .note-title { font-size: 17px; font-weight: 750; }
+      .node-detail, .note-detail { font-size: 13px; fill: #405166; }
+      .edge { fill: none; stroke: #35516f; stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; }
+      .edge-dashed { stroke-dasharray: 8 7; }
+      .edge-warning { stroke: #b95d1a; stroke-dasharray: 5 5; }
+      .edge-label rect { fill: #fbfcfe; stroke: #dce3ec; stroke-width: 1; }
+      .edge-label text { font-size: 12px; font-weight: 650; fill: #405166; }
+      .caption { font-size: 12px; fill: #405166; }
+    </style>
+  </defs>
+  <rect class="canvas" x="0" y="0" width="1600" height="1000"/>
+  <text class="diagram-title" x="48" y="58">RecallLedger implemented architecture</text>
+  <text class="diagram-subtitle" x="48" y="91">Explicit tenant context to verified SQLite state and machine-readable output</text>
+  <line class="header-rule" x1="48" y1="116" x2="1552" y2="116"/>
+  <g class="lane" data-binding="trusted-context"><rect x="40" y="150" width="250" height="680" rx="20"/>
+    <text class="lane-label" x="64" y="184">TRUSTED CALLER</text>
+  </g>
+  <g class="lane" data-binding="cli-entry"><rect x="315" y="150" width="300" height="680" rx="20"/>
+    <text class="lane-label" x="339" y="184">INSTALLED CLI</text>
+  </g>
+  <g class="lane" data-binding="ledger-api"><rect x="640" y="150" width="520" height="680" rx="20"/>
+    <text class="lane-label" x="664" y="184">TENANT-SCOPED LEDGER CORE</text>
+  </g>
+  <g class="lane" data-binding="event-schema"><rect x="1185" y="150" width="375" height="680" rx="20"/>
+    <text class="lane-label" x="1209" y="184">VERSIONED DURABLE SQLITE</text>
+  </g>
+  <path class="edge edge-solid" id="context-to-input" data-binding="trusted-context" d="M 260 370 L 325 370 L 325 275 L 345 275" marker-end="url(#arrow)"/>
+  <path class="edge edge-solid" id="input-to-dispatch" data-binding="bounded-input" d="M 465 340 L 465 390" marker-end="url(#arrow)"/>
+  <path class="edge edge-solid" id="dispatch-to-api" data-binding="dispatch" d="M 585 455 L 625 455 L 625 272 L 650 272" marker-end="url(#arrow)"/>
+  <path class="edge edge-solid" id="api-to-transaction" data-binding="write-guard" d="M 835 272 L 960 272" marker-end="url(#arrow)"/>
+  <path class="edge edge-dashed" id="api-to-read-verifier" data-binding="history-read" d="M 730 340 L 730 385 L 630 385 L 630 680 L 880 680 L 880 650 L 900 650" marker-end="url(#arrow)"/>
+  <path class="edge edge-solid" id="transaction-to-event" data-binding="transition-order" d="M 1020 340 L 1020 405 L 780 405 L 780 440" marker-end="url(#arrow)"/>
+  <path class="edge edge-solid" id="event-to-log" data-binding="insert-event" d="M 885 510 L 1240 510" marker-end="url(#arrow)"/>
+  <path class="edge edge-solid" id="log-to-head" data-binding="head-write" d="M 1380 560 L 1380 650" marker-end="url(#arrow)"/>
+  <path class="edge edge-dashed" id="log-to-verifier" data-binding="history-read" d="M 1240 540 L 1210 540 L 1210 575 L 1000 575 L 1000 600" marker-end="url(#arrow)"/>
+  <path class="edge edge-dashed" id="head-to-verifier" data-binding="head-read" d="M 1240 700 L 1110 700" marker-end="url(#arrow)"/>
+  <path class="edge edge-solid" id="verifier-to-output" data-binding="machine-output" d="M 900 730 L 620 730 L 620 685 L 585 685" marker-end="url(#arrow)"/>
+  <path class="edge edge-solid" id="output-to-caller" data-binding="machine-output" d="M 345 685 L 300 685 L 300 420 L 260 420" marker-end="url(#arrow)"/>
+  <g class="node node-neutral" id="caller-context" data-binding="trusted-context">
+    <rect x="70" y="295" width="190" height="150" rx="16"/>
+    <text class="node-title" x="92" y="329">Operator</text>
+    <text class="node-detail" x="92" y="357">owner-only root</text>
+    <text class="node-detail" x="92" y="378">caller tenant ID</text>
+    <text class="node-detail" x="92" y="399">IDs are not auth</text>
+  </g>
+  <g class="node node-accent" id="bounded-cli-input" data-binding="bounded-input">
+    <rect x="345" y="210" width="240" height="130" rx="16"/>
+    <text class="node-title" x="367" y="244">Bounded input</text>
+    <text class="node-detail" x="367" y="272">no argv abbreviations</text>
+    <text class="node-detail" x="367" y="293">strict UTF-8 JSON</text>
+    <text class="node-detail" x="367" y="314">closed content shape</text>
+  </g>
+  <g class="node node-primary" id="command-dispatch" data-binding="dispatch">
+    <rect x="345" y="390" width="240" height="130" rx="16"/>
+    <text class="node-title" x="367" y="424">Dispatch</text>
+    <text class="node-detail" x="367" y="452">write commands</text>
+    <text class="node-detail" x="367" y="473">get · head · history</text>
+    <text class="node-detail" x="367" y="494">open → execute → close</text>
+  </g>
+  <g class="node node-output" id="machine-json-output" data-binding="machine-output">
+    <rect x="345" y="620" width="240" height="130" rx="16"/>
+    <text class="node-title" x="367" y="654">Machine output</text>
+    <text class="node-detail" x="367" y="682">JSON or history JSONL</text>
+    <text class="node-detail" x="367" y="703">stdout or stderr JSON</text>
+    <text class="node-detail" x="367" y="724">stable exit categories</text>
+  </g>
+  <g class="node node-primary" id="public-ledger-api" data-binding="ledger-api">
+    <rect x="650" y="205" width="185" height="135" rx="16"/>
+    <text class="node-title" x="672" y="239">Ledger API</text>
+    <text class="node-detail" x="672" y="267">tenant calls</text>
+    <text class="node-detail" x="672" y="288">typed results</text>
+    <text class="node-detail" x="672" y="309">process / thread</text>
+  </g>
+  <g class="node node-strong" id="write-transaction" data-binding="write-guard">
+    <rect x="960" y="205" width="185" height="135" rx="16"/>
+    <text class="node-title" x="982" y="239">Write txn</text>
+    <text class="node-detail" x="982" y="267">BEGIN now</text>
+    <text class="node-detail" x="982" y="288">replay first</text>
+    <text class="node-detail" x="982" y="309">commit proof</text>
+  </g>
+  <g class="node node-neutral" id="canonical-event" data-binding="event-contract">
+    <rect x="675" y="440" width="210" height="145" rx="16"/>
+    <text class="node-title" x="697" y="474">Event envelope</text>
+    <text class="node-detail" x="697" y="502">closed event types</text>
+    <text class="node-detail" x="697" y="523">canonical JSON</text>
+    <text class="node-detail" x="697" y="544">SHA-256 prev hash</text>
+  </g>
+  <g class="node node-primary" id="verified-projection" data-binding="row-reconciliation">
+    <rect x="900" y="600" width="210" height="145" rx="16"/>
+    <text class="node-title" x="922" y="634">Verified reads</text>
+    <text class="node-detail" x="922" y="662">decode event bytes</text>
+    <text class="node-detail" x="922" y="683">check row + head</text>
+    <text class="node-detail" x="922" y="704">history page proof</text>
+  </g>
+  <g class="node node-storage" id="event-log" data-binding="event-schema">
+    <rect x="1240" y="410" width="280" height="150" rx="16"/>
+    <text class="node-title" x="1262" y="444">ledger_events</text>
+    <text class="node-detail" x="1262" y="472">API append-only intent</text>
+    <text class="node-detail" x="1262" y="493">tenant/note/revision key</text>
+    <text class="node-detail" x="1262" y="514">unique tenant command</text>
+  </g>
+  <g class="node node-storage" id="head-projection" data-binding="head-schema">
+    <rect x="1240" y="650" width="280" height="145" rx="16"/>
+    <text class="node-title" x="1262" y="684">note_heads</text>
+    <text class="node-detail" x="1262" y="712">one tenant/note pointer</text>
+    <text class="node-detail" x="1262" y="733">latest rev + event hash</text>
+    <text class="node-detail" x="1262" y="754">logical tombstone state</text>
+  </g>
+  <g class="edge-label" data-edge="context-to-input" data-binding="trusted-context">
+    <rect x="267" y="353" width="116" height="26" rx="8"/>
+    <text x="325" y="370" text-anchor="middle">tenant ID</text>
+  </g>
+  <g class="edge-label" data-edge="input-to-dispatch" data-binding="bounded-input">
+    <rect x="397" y="349" width="147" height="26" rx="8"/>
+    <text x="470" y="366" text-anchor="middle">validated input</text>
+  </g>
+  <g class="edge-label" data-edge="dispatch-to-api" data-binding="dispatch">
+    <rect x="595" y="353" width="130" height="26" rx="8"/>
+    <text x="660" y="370" text-anchor="middle">one operation</text>
+  </g>
+  <g class="edge-label" data-edge="api-to-transaction" data-binding="write-guard">
+    <rect x="839" y="255" width="116" height="26" rx="8"/>
+    <text x="897" y="272" text-anchor="middle">mutations</text>
+  </g>
+  <g class="edge-label" data-edge="api-to-read-verifier" data-binding="history-read">
+    <rect x="521" y="583" width="139" height="26" rx="8"/>
+    <text x="590" y="600" text-anchor="middle">verified reads</text>
+  </g>
+  <g class="edge-label" data-edge="transaction-to-event" data-binding="transition-order">
+    <rect x="705" y="403" width="191" height="26" rx="8"/>
+    <text x="800" y="420" text-anchor="middle">new command: derive</text>
+  </g>
+  <g class="edge-label" data-edge="event-to-log" data-binding="insert-event">
+    <rect x="999" y="493" width="122" height="26" rx="8"/>
+    <text x="1060" y="510" text-anchor="middle">append event</text>
+  </g>
+  <g class="edge-label" data-edge="log-to-head" data-binding="head-write">
+    <rect x="1300" y="588" width="160" height="26" rx="8"/>
+    <text x="1380" y="605" text-anchor="middle">head insert / CAS</text>
+  </g>
+  <g class="edge-label" data-edge="log-to-verifier" data-binding="history-read">
+    <rect x="1039" y="558" width="122" height="26" rx="8"/>
+    <text x="1100" y="575" text-anchor="middle">history page</text>
+  </g>
+  <g class="edge-label" data-edge="head-to-verifier" data-binding="head-read">
+    <rect x="1117" y="683" width="116" height="26" rx="8"/>
+    <text x="1175" y="700" text-anchor="middle">verify head</text>
+  </g>
+  <g class="edge-label" data-edge="verifier-to-output" data-binding="machine-output">
+    <rect x="687" y="713" width="147" height="26" rx="8"/>
+    <text x="760" y="730" text-anchor="middle">verified result</text>
+  </g>
+  <g class="edge-label" data-edge="output-to-caller" data-binding="machine-output">
+    <rect x="207" y="533" width="187" height="26" rx="8"/>
+    <text x="300" y="550" text-anchor="middle">stdout / stderr JSON</text>
+  </g>
+  <g class="note node-accent" id="replay-bypass-note" data-binding="transition-order">
+    <rect x="1190" y="220" width="330" height="95" rx="16"/>
+    <text class="note-title" x="1210" y="250">Exact replay bypass</text>
+    <text class="note-detail" x="1210" y="276">Stored event returns after proof.</text>
+    <text class="note-detail" x="1210" y="296">No event append or head write.</text>
+  </g>
+  <g class="note node-accent" id="scope-note" data-binding="scope-boundary">
+    <rect x="55" y="850" width="710" height="95" rx="16"/>
+    <text class="note-title" x="75" y="880">Implemented scope</text>
+    <text class="note-detail" x="75" y="906">No tenant authentication, search, or model integration is implemented.</text>
+    <text class="note-detail" x="75" y="926">One local operator invocation is shown; no server or background worker.</text>
+  </g>
+  <g class="note node-neutral" id="deletion-note" data-binding="logical-deletion">
+    <rect x="835" y="850" width="710" height="95" rx="16"/>
+    <text class="note-title" x="855" y="880">Deletion boundary</text>
+    <text class="note-detail" x="855" y="906">Tombstones hide the live note; earlier events remain in privileged history.</text>
+    <text class="note-detail" x="855" y="926">Hash links reveal drift only relative to a separately trusted expected tip.</text>
+  </g>
+  <text class="caption" x="48" y="975">Source-derived architecture; not a runtime screenshot or benchmark · Source: architecture-workflow.v1.json</text>
+</svg>

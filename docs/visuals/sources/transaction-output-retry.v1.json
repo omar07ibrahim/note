@@ -1,0 +1,657 @@
+{
+  "schema_version": 1,
+  "diagram_kind": "state_machine",
+  "slug": "transaction-output-retry",
+  "entry": "mutation-invocation",
+  "title": "Write settlement and retry boundaries",
+  "subtitle": "Storage uncertainty and late output failure require different recovery",
+  "description": "Source-derived state machine centered on a RecallLedger mutation. It separates the open and write settlement guard from a settled operation, shows exact replay and rollback proof as source-bound invariants, and follows poisoning, code-specific state or busy outcomes, serialization, stdout delivery, recovery guidance, and the final stderr boundary. The outer CLI recovery policy also names same-invocation retries for reads. It does not claim that stdout or stderr delivery is atomic or durably consumed downstream.",
+  "caption": "Source-derived failure model; not a runtime screenshot or benchmark",
+  "canvas": {
+    "width": 1600,
+    "height": 1300
+  },
+  "bindings": [
+    {
+      "id": "cli-run",
+      "kind": "python",
+      "path": "src/recall_ledger/cli.py",
+      "target": "run_cli",
+      "match": "defined",
+      "expected": "function",
+      "claim": "run_cli separates operation settlement, serialization, and final stream output."
+    },
+    {
+      "id": "write-phases",
+      "kind": "python",
+      "path": "src/recall_ledger/storage.py",
+      "target": "_WriteTransactionPhase",
+      "match": "defined",
+      "expected": "class",
+      "claim": "The storage write guard names five concrete transaction phases."
+    },
+    {
+      "id": "begin-proof",
+      "kind": "python",
+      "path": "src/recall_ledger/storage.py",
+      "target": "SQLiteLedger._begin_transaction",
+      "match": "defined",
+      "expected": "method",
+      "claim": "A write becomes active only after BEGIN IMMEDIATE and an active-state proof."
+    },
+    {
+      "id": "exact-replay",
+      "kind": "python",
+      "path": "src/recall_ledger/_ledger_operations.py",
+      "target": "_transition_in_transaction",
+      "match": "defined",
+      "expected": "function",
+      "claim": "An exact stored command returns its original event without another durable event."
+    },
+    {
+      "id": "verified-rollback",
+      "kind": "python",
+      "path": "src/recall_ledger/storage.py",
+      "target": "SQLiteLedger._rollback_or_poison",
+      "match": "defined",
+      "expected": "method",
+      "claim": "Replay and recoverable failure return only after a clean rollback is proven."
+    },
+    {
+      "id": "failure-settlement",
+      "kind": "python",
+      "path": "src/recall_ledger/storage.py",
+      "target": "SQLiteLedger._settle_transaction_failure",
+      "match": "defined",
+      "expected": "method",
+      "claim": "The outer guard distinguishes active rollback from an unknown commit outcome."
+    },
+    {
+      "id": "poison-gate",
+      "kind": "python",
+      "path": "src/recall_ledger/storage.py",
+      "target": "SQLiteLedger._ready_connection",
+      "match": "defined",
+      "expected": "method",
+      "claim": "A poisoned ledger rejects further operations until it is closed."
+    },
+    {
+      "id": "serialize-result",
+      "kind": "python",
+      "path": "src/recall_ledger/cli.py",
+      "target": "_serialize",
+      "match": "defined",
+      "expected": "function",
+      "claim": "Settled records become canonical compact JSON, pretty JSON, or history JSONL."
+    },
+    {
+      "id": "stream-write",
+      "kind": "python",
+      "path": "src/recall_ledger/cli.py",
+      "target": "_write",
+      "match": "defined",
+      "expected": "function",
+      "claim": "The CLI loops until its Python stream accepts the payload and then flushes."
+    },
+    {
+      "id": "success-exit",
+      "kind": "python",
+      "path": "src/recall_ledger/cli.py",
+      "target": "EXIT_SUCCESS",
+      "match": "equals",
+      "expected": "0",
+      "claim": "Exit zero follows a completed write and flush to the supplied Python stream."
+    },
+    {
+      "id": "state-exit",
+      "kind": "python",
+      "path": "src/recall_ledger/cli.py",
+      "target": "EXIT_STATE",
+      "match": "equals",
+      "expected": "11",
+      "claim": "State conflicts such as revision and idempotency conflicts use exit 11."
+    },
+    {
+      "id": "busy-exit",
+      "kind": "python",
+      "path": "src/recall_ledger/cli.py",
+      "target": "EXIT_BUSY",
+      "match": "equals",
+      "expected": "12",
+      "claim": "Bounded writer or migration contention uses exit 12."
+    },
+    {
+      "id": "uncertain-exit",
+      "kind": "python",
+      "path": "src/recall_ledger/cli.py",
+      "target": "EXIT_UNCERTAIN",
+      "match": "equals",
+      "expected": "14",
+      "claim": "Unknown commit, failed rollback, and poisoned state use exit 14."
+    },
+    {
+      "id": "output-exit",
+      "kind": "python",
+      "path": "src/recall_ledger/cli.py",
+      "target": "EXIT_OUTPUT",
+      "match": "equals",
+      "expected": "74",
+      "claim": "Unavailable stdout or stderr output uses exit 74."
+    },
+    {
+      "id": "interrupted-exit",
+      "kind": "python",
+      "path": "src/recall_ledger/cli.py",
+      "target": "EXIT_INTERRUPTED",
+      "match": "equals",
+      "expected": "130",
+      "claim": "An interrupted operation or output attempt uses exit 130."
+    },
+    {
+      "id": "retry-guidance",
+      "kind": "python",
+      "path": "src/recall_ledger/cli.py",
+      "target": "_retry_guidance",
+      "match": "defined",
+      "expected": "function",
+      "claim": "Machine-readable retry guidance varies by storage error code."
+    },
+    {
+      "id": "command-retry",
+      "kind": "python",
+      "path": "src/recall_ledger/cli.py",
+      "target": "_command_retry",
+      "match": "defined",
+      "expected": "function",
+      "claim": "Mutations reuse the exact command while reads repeat the same invocation."
+    },
+    {
+      "id": "error-emission",
+      "kind": "python",
+      "path": "src/recall_ledger/cli.py",
+      "target": "_emit_error",
+      "match": "defined",
+      "expected": "function",
+      "claim": "Even bounded error JSON can encounter an output failure or interruption."
+    }
+  ],
+  "lanes": [
+    {
+      "id": "storage-state-lane",
+      "binding": "write-phases",
+      "label": "SQLITE WRITE TRANSACTION + SETTLEMENT",
+      "x": 40,
+      "y": 150,
+      "width": 970,
+      "height": 890
+    },
+    {
+      "id": "cli-outcome-lane",
+      "binding": "cli-run",
+      "label": "CLI OUTPUT + EXIT",
+      "x": 1035,
+      "y": 150,
+      "width": 525,
+      "height": 890
+    }
+  ],
+  "nodes": [
+    {
+      "id": "mutation-invocation",
+      "binding": "cli-run",
+      "lane": "storage-state-lane",
+      "label": "Mutation",
+      "detail": [
+        "parsed CLI",
+        "one call"
+      ],
+      "x": 60,
+      "y": 220,
+      "width": 170,
+      "height": 110,
+      "variant": "neutral"
+    },
+    {
+      "id": "settlement-guard",
+      "binding": "write-phases",
+      "lane": "storage-state-lane",
+      "label": "Open / write guard",
+      "detail": [
+        "before_begin → active",
+        "active → commit_call",
+        "returned → committed"
+      ],
+      "x": 360,
+      "y": 205,
+      "width": 280,
+      "height": 150,
+      "variant": "primary"
+    },
+    {
+      "id": "settled-operation",
+      "binding": "write-phases",
+      "lane": "storage-state-lane",
+      "label": "Settled",
+      "detail": [
+        "replay proof",
+        "commit proof"
+      ],
+      "x": 765,
+      "y": 220,
+      "width": 175,
+      "height": 110,
+      "variant": "strong"
+    },
+    {
+      "id": "poisoned",
+      "binding": "poison-gate",
+      "lane": "storage-state-lane",
+      "label": "Poisoned",
+      "detail": [
+        "outcome unknown",
+        "close only",
+        "new object"
+      ],
+      "x": 385,
+      "y": 700,
+      "width": 230,
+      "height": 130,
+      "variant": "warning"
+    },
+    {
+      "id": "serialize",
+      "binding": "serialize-result",
+      "lane": "cli-outcome-lane",
+      "label": "Serialize",
+      "detail": [
+        "operation settled",
+        "ledger closed",
+        "JSON / JSONL"
+      ],
+      "x": 1070,
+      "y": 205,
+      "width": 210,
+      "height": 130,
+      "variant": "output"
+    },
+    {
+      "id": "success",
+      "binding": "success-exit",
+      "lane": "cli-outcome-lane",
+      "label": "Success · 0",
+      "detail": [
+        "payload written",
+        "flush returned"
+      ],
+      "x": 1320,
+      "y": 205,
+      "width": 205,
+      "height": 115,
+      "variant": "strong"
+    },
+    {
+      "id": "state-error",
+      "binding": "state-exit",
+      "lane": "cli-outcome-lane",
+      "label": "State · 11",
+      "detail": [
+        "revision → inspect",
+        "idempotency → stop",
+        "absent/tomb. → none"
+      ],
+      "x": 1060,
+      "y": 390,
+      "width": 220,
+      "height": 130,
+      "variant": "warning"
+    },
+    {
+      "id": "busy-error",
+      "binding": "busy-exit",
+      "lane": "cli-outcome-lane",
+      "label": "Busy · 12",
+      "detail": [
+        "open: no ledger",
+        "write: no commit",
+        "exact / same retry"
+      ],
+      "x": 1320,
+      "y": 390,
+      "width": 205,
+      "height": 130,
+      "variant": "neutral"
+    },
+    {
+      "id": "retry-policy",
+      "binding": "retry-guidance",
+      "lane": "cli-outcome-lane",
+      "label": "Code-specific retry field",
+      "detail": [
+        "state: inspect / stop / none · busy: exact / same",
+        "uncertain: reopen · output: settlement-aware"
+      ],
+      "x": 1070,
+      "y": 570,
+      "width": 455,
+      "height": 110,
+      "variant": "accent"
+    },
+    {
+      "id": "uncertain",
+      "binding": "uncertain-exit",
+      "lane": "cli-outcome-lane",
+      "label": "Uncertain · 14",
+      "detail": [
+        "close poisoned",
+        "reopen first",
+        "then exact / same"
+      ],
+      "x": 1070,
+      "y": 735,
+      "width": 240,
+      "height": 130,
+      "variant": "warning"
+    },
+    {
+      "id": "stdout-failure",
+      "binding": "output-exit",
+      "lane": "cli-outcome-lane",
+      "label": "Stdout · 74",
+      "detail": [
+        "operation settled",
+        "partial prefix",
+        "exact / same retry"
+      ],
+      "x": 1320,
+      "y": 735,
+      "width": 205,
+      "height": 130,
+      "variant": "warning"
+    },
+    {
+      "id": "error-channel",
+      "binding": "error-emission",
+      "lane": "cli-outcome-lane",
+      "label": "Error-channel delivery",
+      "detail": [
+        "mapped error attempts stderr JSON",
+        "write failure can hide its exit and retry hint"
+      ],
+      "x": 1070,
+      "y": 910,
+      "width": 455,
+      "height": 110,
+      "variant": "output"
+    }
+  ],
+  "edges": [
+    {
+      "id": "invoke-to-guard",
+      "binding": "begin-proof",
+      "from": "mutation-invocation",
+      "to": "settlement-guard",
+      "label": "invoke",
+      "label_x": 295,
+      "label_y": 275,
+      "style": "solid",
+      "points": [
+        [230, 275],
+        [360, 275]
+      ]
+    },
+    {
+      "id": "guard-to-settled",
+      "binding": "write-phases",
+      "from": "settlement-guard",
+      "to": "settled-operation",
+      "label": "proof",
+      "label_x": 702,
+      "label_y": 275,
+      "style": "solid",
+      "points": [
+        [640, 275],
+        [765, 275]
+      ]
+    },
+    {
+      "id": "guard-to-poisoned",
+      "binding": "failure-settlement",
+      "from": "settlement-guard",
+      "to": "poisoned",
+      "label": "proof missing",
+      "label_x": 500,
+      "label_y": 650,
+      "style": "warning",
+      "points": [
+        [500, 355],
+        [500, 700]
+      ]
+    },
+    {
+      "id": "guard-to-state",
+      "binding": "state-exit",
+      "from": "settlement-guard",
+      "to": "state-error",
+      "label": "state error",
+      "label_x": 850,
+      "label_y": 370,
+      "style": "dashed",
+      "points": [
+        [520, 355],
+        [520, 370],
+        [1030, 370],
+        [1030, 455],
+        [1060, 455]
+      ]
+    },
+    {
+      "id": "guard-to-busy",
+      "binding": "busy-exit",
+      "from": "settlement-guard",
+      "to": "busy-error",
+      "label": "open / writer busy",
+      "label_x": 1180,
+      "label_y": 370,
+      "style": "dashed",
+      "points": [
+        [640, 340],
+        [1300, 340],
+        [1300, 455],
+        [1320, 455]
+      ]
+    },
+    {
+      "id": "settled-to-serialize",
+      "binding": "cli-run",
+      "from": "settled-operation",
+      "to": "serialize",
+      "label": "ready",
+      "label_x": 1005,
+      "label_y": 275,
+      "style": "solid",
+      "points": [
+        [940, 275],
+        [1070, 275]
+      ]
+    },
+    {
+      "id": "poisoned-to-uncertain",
+      "binding": "uncertain-exit",
+      "from": "poisoned",
+      "to": "uncertain",
+      "label": "outcome unknown",
+      "label_x": 900,
+      "label_y": 780,
+      "style": "warning",
+      "points": [
+        [615, 780],
+        [1000, 780],
+        [1000, 800],
+        [1070, 800]
+      ]
+    },
+    {
+      "id": "serialize-to-success",
+      "binding": "stream-write",
+      "from": "serialize",
+      "to": "success",
+      "label": "write all + flush",
+      "label_x": 1345,
+      "label_y": 160,
+      "style": "solid",
+      "points": [
+        [1270, 205],
+        [1270, 160],
+        [1422, 160],
+        [1422, 205]
+      ]
+    },
+    {
+      "id": "serialize-to-stdout-failure",
+      "binding": "output-exit",
+      "from": "serialize",
+      "to": "stdout-failure",
+      "label": "stdout fails",
+      "label_x": 1500,
+      "label_y": 145,
+      "style": "warning",
+      "points": [
+        [1070, 250],
+        [1020, 250],
+        [1020, 120],
+        [1590, 120],
+        [1590, 800],
+        [1525, 800]
+      ]
+    },
+    {
+      "id": "state-to-policy",
+      "binding": "retry-guidance",
+      "from": "state-error",
+      "to": "retry-policy",
+      "label": "per code",
+      "label_x": 1175,
+      "label_y": 545,
+      "style": "dashed",
+      "points": [
+        [1175, 520],
+        [1175, 570]
+      ]
+    },
+    {
+      "id": "busy-to-policy",
+      "binding": "retry-guidance",
+      "from": "busy-error",
+      "to": "retry-policy",
+      "label": "exact / same",
+      "label_x": 1422,
+      "label_y": 545,
+      "style": "dashed",
+      "points": [
+        [1422, 520],
+        [1422, 570]
+      ]
+    },
+    {
+      "id": "uncertain-to-policy",
+      "binding": "retry-guidance",
+      "from": "uncertain",
+      "to": "retry-policy",
+      "label": "reopen first",
+      "label_x": 1175,
+      "label_y": 710,
+      "style": "warning",
+      "points": [
+        [1175, 735],
+        [1175, 680]
+      ]
+    },
+    {
+      "id": "stdout-to-policy",
+      "binding": "command-retry",
+      "from": "stdout-failure",
+      "to": "retry-policy",
+      "label": "settled retry",
+      "label_x": 1400,
+      "label_y": 710,
+      "style": "warning",
+      "points": [
+        [1422, 735],
+        [1422, 680]
+      ]
+    },
+    {
+      "id": "policy-to-error-channel",
+      "binding": "error-emission",
+      "from": "retry-policy",
+      "to": "error-channel",
+      "label": "stderr JSON",
+      "label_x": 1315,
+      "label_y": 890,
+      "style": "dashed",
+      "points": [
+        [1315, 680],
+        [1315, 910]
+      ]
+    }
+  ],
+  "notes": [
+    {
+      "id": "exact-replay-note",
+      "binding": "exact-replay",
+      "label": "Exact replay",
+      "text": [
+        "Same command and intent.",
+        "Return stored event.",
+        "Add no event."
+      ],
+      "x": 60,
+      "y": 450,
+      "width": 280,
+      "variant": "accent"
+    },
+    {
+      "id": "rollback-proof-note",
+      "binding": "verified-rollback",
+      "label": "Rollback proof",
+      "text": [
+        "Replay or known",
+        "pre-commit error.",
+        "Return after rollback proof."
+      ],
+      "x": 670,
+      "y": 450,
+      "width": 300,
+      "variant": "warning"
+    },
+    {
+      "id": "interruption-note",
+      "binding": "interrupted-exit",
+      "label": "Interruption is phase-specific",
+      "text": [
+        "Operation interrupt: reopen, then retry the exact mutation or same read.",
+        "Close or settled-stdout interrupt: retry the exact mutation or same read.",
+        "If stderr emission is interrupted, exit 130 can hide the original",
+        "retry field."
+      ],
+      "x": 55,
+      "y": 1080,
+      "width": 720,
+      "variant": "warning"
+    },
+    {
+      "id": "output-boundary-note",
+      "binding": "command-retry",
+      "label": "Output failure is not storage poisoning",
+      "text": [
+        "Stdout failure follows operation settlement and close.",
+        "A partial prefix may exist; exact mutation retry reconciles a prior",
+        "commit by command idempotency."
+      ],
+      "x": 825,
+      "y": 1080,
+      "width": 720,
+      "variant": "accent"
+    }
+  ]
+}

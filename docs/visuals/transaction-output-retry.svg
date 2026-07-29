@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1300" data-entry="mutation-invocation" role="img" aria-labelledby="transaction-output-retry-title transaction-output-retry-description">
+  <title id="transaction-output-retry-title">Write settlement and retry boundaries</title>
+  <desc id="transaction-output-retry-description">Source-derived state machine centered on a RecallLedger mutation. It separates the open and write settlement guard from a settled operation, shows exact replay and rollback proof as source-bound invariants, and follows poisoning, code-specific state or busy outcomes, serialization, stdout delivery, recovery guidance, and the final stderr boundary. The outer CLI recovery policy also names same-invocation retries for reads. It does not claim that stdout or stderr delivery is atomic or durably consumed downstream.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#35516f"/>
+    </marker>
+    <marker id="arrow-warning" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#b95d1a"/>
+    </marker>
+    <style>
+      text { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #182536; }
+      .canvas { fill: #fbfcfe; }
+      .header-rule { stroke: #d8e0ea; stroke-width: 2; }
+      .diagram-title { font-size: 34px; font-weight: 750; letter-spacing: -0.6px; }
+      .diagram-subtitle { font-size: 17px; fill: #526276; }
+      .lane rect { fill: #f7f9fc; stroke: #66768a; stroke-width: 1.5; }
+      .lane-label { font-size: 13px; font-weight: 750; letter-spacing: 1.4px; fill: #405166; }
+      .node rect, .note rect { stroke-width: 2; }
+      .node-primary rect { fill: #eaf2ff; stroke: #2f66b3; }
+      .node-strong rect { fill: #dbe9ff; stroke: #214f8c; }
+      .node-accent rect { fill: #fff4d8; stroke: #ae7617; }
+      .node-neutral rect { fill: #f5f7fa; stroke: #66768a; }
+      .node-storage rect { fill: #eef1f5; stroke: #455468; }
+      .node-output rect { fill: #f3f8ff; stroke: #5b7fb3; }
+      .node-warning rect { fill: #fff0e4; stroke: #b95d1a; }
+      .node-title, .note-title { font-size: 17px; font-weight: 750; }
+      .node-detail, .note-detail { font-size: 13px; fill: #405166; }
+      .edge { fill: none; stroke: #35516f; stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; }
+      .edge-dashed { stroke-dasharray: 8 7; }
+      .edge-warning { stroke: #b95d1a; stroke-dasharray: 5 5; }
+      .edge-label rect { fill: #fbfcfe; stroke: #dce3ec; stroke-width: 1; }
+      .edge-label text { font-size: 12px; font-weight: 650; fill: #405166; }
+      .caption { font-size: 12px; fill: #405166; }
+    </style>
+  </defs>
+  <rect class="canvas" x="0" y="0" width="1600" height="1300"/>
+  <text class="diagram-title" x="48" y="58">Write settlement and retry boundaries</text>
+  <text class="diagram-subtitle" x="48" y="91">Storage uncertainty and late output failure require different recovery</text>
+  <line class="header-rule" x1="48" y1="116" x2="1552" y2="116"/>
+  <g class="lane" data-binding="write-phases"><rect x="40" y="150" width="970" height="890" rx="20"/>
+    <text class="lane-label" x="64" y="184">SQLITE WRITE TRANSACTION + SETTLEMENT</text>
+  </g>
+  <g class="lane" data-binding="cli-run"><rect x="1035" y="150" width="525" height="890" rx="20"/>
+    <text class="lane-label" x="1059" y="184">CLI OUTPUT + EXIT</text>
+  </g>
+  <path class="edge edge-solid" id="invoke-to-guard" data-binding="begin-proof" d="M 230 275 L 360 275" marker-end="url(#arrow)"/>
+  <path class="edge edge-solid" id="guard-to-settled" data-binding="write-phases" d="M 640 275 L 765 275" marker-end="url(#arrow)"/>
+  <path class="edge edge-warning" id="guard-to-poisoned" data-binding="failure-settlement" d="M 500 355 L 500 700" marker-end="url(#arrow-warning)"/>
+  <path class="edge edge-dashed" id="guard-to-state" data-binding="state-exit" d="M 520 355 L 520 370 L 1030 370 L 1030 455 L 1060 455" marker-end="url(#arrow)"/>
+  <path class="edge edge-dashed" id="guard-to-busy" data-binding="busy-exit" d="M 640 340 L 1300 340 L 1300 455 L 1320 455" marker-end="url(#arrow)"/>
+  <path class="edge edge-solid" id="settled-to-serialize" data-binding="cli-run" d="M 940 275 L 1070 275" marker-end="url(#arrow)"/>
+  <path class="edge edge-warning" id="poisoned-to-uncertain" data-binding="uncertain-exit" d="M 615 780 L 1000 780 L 1000 800 L 1070 800" marker-end="url(#arrow-warning)"/>
+  <path class="edge edge-solid" id="serialize-to-success" data-binding="stream-write" d="M 1270 205 L 1270 160 L 1422 160 L 1422 205" marker-end="url(#arrow)"/>
+  <path class="edge edge-warning" id="serialize-to-stdout-failure" data-binding="output-exit" d="M 1070 250 L 1020 250 L 1020 120 L 1590 120 L 1590 800 L 1525 800" marker-end="url(#arrow-warning)"/>
+  <path class="edge edge-dashed" id="state-to-policy" data-binding="retry-guidance" d="M 1175 520 L 1175 570" marker-end="url(#arrow)"/>
+  <path class="edge edge-dashed" id="busy-to-policy" data-binding="retry-guidance" d="M 1422 520 L 1422 570" marker-end="url(#arrow)"/>
+  <path class="edge edge-warning" id="uncertain-to-policy" data-binding="retry-guidance" d="M 1175 735 L 1175 680" marker-end="url(#arrow-warning)"/>
+  <path class="edge edge-warning" id="stdout-to-policy" data-binding="command-retry" d="M 1422 735 L 1422 680" marker-end="url(#arrow-warning)"/>
+  <path class="edge edge-dashed" id="policy-to-error-channel" data-binding="error-emission" d="M 1315 680 L 1315 910" marker-end="url(#arrow)"/>
+  <g class="node node-neutral" id="mutation-invocation" data-binding="cli-run">
+    <rect x="60" y="220" width="170" height="110" rx="16"/>
+    <text class="node-title" x="82" y="254">Mutation</text>
+    <text class="node-detail" x="82" y="282">parsed CLI</text>
+    <text class="node-detail" x="82" y="303">one call</text>
+  </g>
+  <g class="node node-primary" id="settlement-guard" data-binding="write-phases">
+    <rect x="360" y="205" width="280" height="150" rx="16"/>
+    <text class="node-title" x="382" y="239">Open / write guard</text>
+    <text class="node-detail" x="382" y="267">before_begin → active</text>
+    <text class="node-detail" x="382" y="288">active → commit_call</text>
+    <text class="node-detail" x="382" y="309">returned → committed</text>
+  </g>
+  <g class="node node-strong" id="settled-operation" data-binding="write-phases">
+    <rect x="765" y="220" width="175" height="110" rx="16"/>
+    <text class="node-title" x="787" y="254">Settled</text>
+    <text class="node-detail" x="787" y="282">replay proof</text>
+    <text class="node-detail" x="787" y="303">commit proof</text>
+  </g>
+  <g class="node node-warning" id="poisoned" data-binding="poison-gate">
+    <rect x="385" y="700" width="230" height="130" rx="16"/>
+    <text class="node-title" x="407" y="734">Poisoned</text>
+    <text class="node-detail" x="407" y="762">outcome unknown</text>
+    <text class="node-detail" x="407" y="783">close only</text>
+    <text class="node-detail" x="407" y="804">new object</text>
+  </g>
+  <g class="node node-output" id="serialize" data-binding="serialize-result">
+    <rect x="1070" y="205" width="210" height="130" rx="16"/>
+    <text class="node-title" x="1092" y="239">Serialize</text>
+    <text class="node-detail" x="1092" y="267">operation settled</text>
+    <text class="node-detail" x="1092" y="288">ledger closed</text>
+    <text class="node-detail" x="1092" y="309">JSON / JSONL</text>
+  </g>
+  <g class="node node-strong" id="success" data-binding="success-exit">
+    <rect x="1320" y="205" width="205" height="115" rx="16"/>
+    <text class="node-title" x="1342" y="239">Success · 0</text>
+    <text class="node-detail" x="1342" y="267">payload written</text>
+    <text class="node-detail" x="1342" y="288">flush returned</text>
+  </g>
+  <g class="node node-warning" id="state-error" data-binding="state-exit">
+    <rect x="1060" y="390" width="220" height="130" rx="16"/>
+    <text class="node-title" x="1082" y="424">State · 11</text>
+    <text class="node-detail" x="1082" y="452">revision → inspect</text>
+    <text class="node-detail" x="1082" y="473">idempotency → stop</text>
+    <text class="node-detail" x="1082" y="494">absent/tomb. → none</text>
+  </g>
+  <g class="node node-neutral" id="busy-error" data-binding="busy-exit">
+    <rect x="1320" y="390" width="205" height="130" rx="16"/>
+    <text class="node-title" x="1342" y="424">Busy · 12</text>
+    <text class="node-detail" x="1342" y="452">open: no ledger</text>
+    <text class="node-detail" x="1342" y="473">write: no commit</text>
+    <text class="node-detail" x="1342" y="494">exact / same retry</text>
+  </g>
+  <g class="node node-accent" id="retry-policy" data-binding="retry-guidance">
+    <rect x="1070" y="570" width="455" height="110" rx="16"/>
+    <text class="node-title" x="1092" y="604">Code-specific retry field</text>
+    <text class="node-detail" x="1092" y="632">state: inspect / stop / none · busy: exact / same</text>
+    <text class="node-detail" x="1092" y="653">uncertain: reopen · output: settlement-aware</text>
+  </g>
+  <g class="node node-warning" id="uncertain" data-binding="uncertain-exit">
+    <rect x="1070" y="735" width="240" height="130" rx="16"/>
+    <text class="node-title" x="1092" y="769">Uncertain · 14</text>
+    <text class="node-detail" x="1092" y="797">close poisoned</text>
+    <text class="node-detail" x="1092" y="818">reopen first</text>
+    <text class="node-detail" x="1092" y="839">then exact / same</text>
+  </g>
+  <g class="node node-warning" id="stdout-failure" data-binding="output-exit">
+    <rect x="1320" y="735" width="205" height="130" rx="16"/>
+    <text class="node-title" x="1342" y="769">Stdout · 74</text>
+    <text class="node-detail" x="1342" y="797">operation settled</text>
+    <text class="node-detail" x="1342" y="818">partial prefix</text>
+    <text class="node-detail" x="1342" y="839">exact / same retry</text>
+  </g>
+  <g class="node node-output" id="error-channel" data-binding="error-emission">
+    <rect x="1070" y="910" width="455" height="110" rx="16"/>
+    <text class="node-title" x="1092" y="944">Error-channel delivery</text>
+    <text class="node-detail" x="1092" y="972">mapped error attempts stderr JSON</text>
+    <text class="node-detail" x="1092" y="993">write failure can hide its exit and retry hint</text>
+  </g>
+  <g class="edge-label" data-edge="invoke-to-guard" data-binding="begin-proof">
+    <rect x="237" y="258" width="116" height="26" rx="8"/>
+    <text x="295" y="275" text-anchor="middle">invoke</text>
+  </g>
+  <g class="edge-label" data-edge="guard-to-settled" data-binding="write-phases">
+    <rect x="644" y="258" width="116" height="26" rx="8"/>
+    <text x="702" y="275" text-anchor="middle">proof</text>
+  </g>
+  <g class="edge-label" data-edge="guard-to-poisoned" data-binding="failure-settlement">
+    <rect x="432" y="633" width="136" height="26" rx="8"/>
+    <text x="500" y="650" text-anchor="middle">proof missing</text>
+  </g>
+  <g class="edge-label" data-edge="guard-to-state" data-binding="state-exit">
+    <rect x="792" y="353" width="116" height="26" rx="8"/>
+    <text x="850" y="370" text-anchor="middle">state error</text>
+  </g>
+  <g class="edge-label" data-edge="guard-to-busy" data-binding="busy-exit">
+    <rect x="1097" y="353" width="167" height="26" rx="8"/>
+    <text x="1180" y="370" text-anchor="middle">open / writer busy</text>
+  </g>
+  <g class="edge-label" data-edge="settled-to-serialize" data-binding="cli-run">
+    <rect x="947" y="258" width="116" height="26" rx="8"/>
+    <text x="1005" y="275" text-anchor="middle">ready</text>
+  </g>
+  <g class="edge-label" data-edge="poisoned-to-uncertain" data-binding="uncertain-exit">
+    <rect x="822" y="763" width="157" height="26" rx="8"/>
+    <text x="900" y="780" text-anchor="middle">outcome unknown</text>
+  </g>
+  <g class="edge-label" data-edge="serialize-to-success" data-binding="stream-write">
+    <rect x="1266" y="143" width="159" height="26" rx="8"/>
+    <text x="1345" y="160" text-anchor="middle">write all + flush</text>
+  </g>
+  <g class="edge-label" data-edge="serialize-to-stdout-failure" data-binding="output-exit">
+    <rect x="1439" y="128" width="122" height="26" rx="8"/>
+    <text x="1500" y="145" text-anchor="middle">stdout fails</text>
+  </g>
+  <g class="edge-label" data-edge="state-to-policy" data-binding="retry-guidance">
+    <rect x="1117" y="528" width="116" height="26" rx="8"/>
+    <text x="1175" y="545" text-anchor="middle">per code</text>
+  </g>
+  <g class="edge-label" data-edge="busy-to-policy" data-binding="retry-guidance">
+    <rect x="1361" y="528" width="123" height="26" rx="8"/>
+    <text x="1422" y="545" text-anchor="middle">exact / same</text>
+  </g>
+  <g class="edge-label" data-edge="uncertain-to-policy" data-binding="retry-guidance">
+    <rect x="1114" y="693" width="122" height="26" rx="8"/>
+    <text x="1175" y="710" text-anchor="middle">reopen first</text>
+  </g>
+  <g class="edge-label" data-edge="stdout-to-policy" data-binding="command-retry">
+    <rect x="1335" y="693" width="130" height="26" rx="8"/>
+    <text x="1400" y="710" text-anchor="middle">settled retry</text>
+  </g>
+  <g class="edge-label" data-edge="policy-to-error-channel" data-binding="error-emission">
+    <rect x="1255" y="873" width="120" height="26" rx="8"/>
+    <text x="1315" y="890" text-anchor="middle">stderr JSON</text>
+  </g>
+  <g class="note node-accent" id="exact-replay-note" data-binding="exact-replay">
+    <rect x="60" y="450" width="280" height="115" rx="16"/>
+    <text class="note-title" x="80" y="480">Exact replay</text>
+    <text class="note-detail" x="80" y="506">Same command and intent.</text>
+    <text class="note-detail" x="80" y="526">Return stored event.</text>
+    <text class="note-detail" x="80" y="546">Add no event.</text>
+  </g>
+  <g class="note node-warning" id="rollback-proof-note" data-binding="verified-rollback">
+    <rect x="670" y="450" width="300" height="115" rx="16"/>
+    <text class="note-title" x="690" y="480">Rollback proof</text>
+    <text class="note-detail" x="690" y="506">Replay or known</text>
+    <text class="note-detail" x="690" y="526">pre-commit error.</text>
+    <text class="note-detail" x="690" y="546">Return after rollback proof.</text>
+  </g>
+  <g class="note node-warning" id="interruption-note" data-binding="interrupted-exit">
+    <rect x="55" y="1080" width="720" height="135" rx="16"/>
+    <text class="note-title" x="75" y="1110">Interruption is phase-specific</text>
+    <text class="note-detail" x="75" y="1136">Operation interrupt: reopen, then retry the exact mutation or same read.</text>
+    <text class="note-detail" x="75" y="1156">Close or settled-stdout interrupt: retry the exact mutation or same read.</text>
+    <text class="note-detail" x="75" y="1176">If stderr emission is interrupted, exit 130 can hide the original</text>
+    <text class="note-detail" x="75" y="1196">retry field.</text>
+  </g>
+  <g class="note node-accent" id="output-boundary-note" data-binding="command-retry">
+    <rect x="825" y="1080" width="720" height="115" rx="16"/>
+    <text class="note-title" x="845" y="1110">Output failure is not storage poisoning</text>
+    <text class="note-detail" x="845" y="1136">Stdout failure follows operation settlement and close.</text>
+    <text class="note-detail" x="845" y="1156">A partial prefix may exist; exact mutation retry reconciles a prior</text>
+    <text class="note-detail" x="845" y="1176">commit by command idempotency.</text>
+  </g>
+  <text class="caption" x="48" y="1275">Source-derived failure model; not a runtime screenshot or benchmark · Source: transaction-output-retry.v1.json</text>
+</svg>

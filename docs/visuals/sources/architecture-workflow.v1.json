@@ -1,0 +1,607 @@
+{
+  "schema_version": 1,
+  "diagram_kind": "architecture",
+  "slug": "architecture-workflow",
+  "entry": "caller-context",
+  "title": "RecallLedger implemented architecture",
+  "subtitle": "Explicit tenant context to verified SQLite state and machine-readable output",
+  "description": "Source-derived architecture of the installed RecallLedger CLI, its bounded input and lifecycle dispatcher, tenant-scoped SQLiteLedger API, atomic transition coordinator, canonical event contract, verified reads, durable event log and head projection, and JSON or JSONL output. Tenant identity is trusted caller context, not authentication. Search, model integration, and a network service are not represented.",
+  "caption": "Source-derived architecture; not a runtime screenshot or benchmark",
+  "canvas": {
+    "width": 1600,
+    "height": 1000
+  },
+  "bindings": [
+    {
+      "id": "cli-entry",
+      "kind": "toml",
+      "path": "pyproject.toml",
+      "target": "project.scripts.recall-ledger",
+      "match": "equals",
+      "expected": "recall_ledger.cli:main",
+      "claim": "The distribution installs one recall-ledger console entry point."
+    },
+    {
+      "id": "trusted-context",
+      "kind": "python",
+      "path": "src/recall_ledger/cli.py",
+      "target": "_parser",
+      "match": "defined",
+      "expected": "function",
+      "claim": "The CLI requires an explicit data directory and tenant identifier."
+    },
+    {
+      "id": "bounded-input",
+      "kind": "python",
+      "path": "src/recall_ledger/cli.py",
+      "target": "_read_content",
+      "match": "defined",
+      "expected": "function",
+      "claim": "Create and revise content enters through a bounded strict JSON reader."
+    },
+    {
+      "id": "dispatch",
+      "kind": "python",
+      "path": "src/recall_ledger/cli.py",
+      "target": "_execute",
+      "match": "defined",
+      "expected": "function",
+      "claim": "One invocation opens, dispatches one supported command, and closes the ledger."
+    },
+    {
+      "id": "ledger-api",
+      "kind": "python",
+      "path": "src/recall_ledger/storage.py",
+      "target": "SQLiteLedger",
+      "match": "defined",
+      "expected": "class",
+      "claim": "SQLiteLedger owns the tenant-scoped public storage operations."
+    },
+    {
+      "id": "write-guard",
+      "kind": "python",
+      "path": "src/recall_ledger/storage.py",
+      "target": "SQLiteLedger._apply_transition",
+      "match": "defined",
+      "expected": "method",
+      "claim": "Mutations run inside the guarded write transaction state machine."
+    },
+    {
+      "id": "transition-order",
+      "kind": "python",
+      "path": "src/recall_ledger/_ledger_operations.py",
+      "target": "_transition_in_transaction",
+      "match": "defined",
+      "expected": "function",
+      "claim": "Command replay is checked before note state, identifier generation, and clock access."
+    },
+    {
+      "id": "event-contract",
+      "kind": "python",
+      "path": "src/recall_ledger/events.py",
+      "target": "LedgerEvent",
+      "match": "defined",
+      "expected": "class",
+      "claim": "LedgerEvent defines canonical hash-linked created, revised, and tombstoned envelopes."
+    },
+    {
+      "id": "insert-event",
+      "kind": "python",
+      "path": "src/recall_ledger/_ledger_operations.py",
+      "target": "_insert_event",
+      "match": "defined",
+      "expected": "function",
+      "claim": "A newly derived canonical envelope is inserted into ledger_events."
+    },
+    {
+      "id": "event-schema",
+      "kind": "python",
+      "path": "src/recall_ledger/storage.py",
+      "target": "_CREATE_EVENTS",
+      "match": "contains",
+      "expected": "CREATE TABLE ledger_events",
+      "claim": "The versioned schema binds tenant, note, revision, command, hashes, and event bytes."
+    },
+    {
+      "id": "head-write",
+      "kind": "contract",
+      "path": "docs/transaction-contract.md",
+      "target": "write-protocol",
+      "match": "contains",
+      "expected": "insert note_heads or compare-and-swap its full old state",
+      "claim": "Creation inserts a head and successors compare-and-swap its full prior state."
+    },
+    {
+      "id": "head-schema",
+      "kind": "python",
+      "path": "src/recall_ledger/storage.py",
+      "target": "_CREATE_HEADS",
+      "match": "contains",
+      "expected": "CREATE TABLE note_heads",
+      "claim": "The head projection stores one current pointer per tenant and note."
+    },
+    {
+      "id": "head-read",
+      "kind": "python",
+      "path": "src/recall_ledger/_ledger_operations.py",
+      "target": "_load_head",
+      "match": "defined",
+      "expected": "function",
+      "claim": "Head reads reconcile the latest event row with the projected head."
+    },
+    {
+      "id": "history-read",
+      "kind": "python",
+      "path": "src/recall_ledger/_ledger_operations.py",
+      "target": "_history_in_transaction",
+      "match": "defined",
+      "expected": "function",
+      "claim": "History reads verify one bounded page inside a consistent read snapshot."
+    },
+    {
+      "id": "row-reconciliation",
+      "kind": "contract",
+      "path": "docs/transaction-contract.md",
+      "target": "stored-row-reconciliation",
+      "match": "contains",
+      "expected": "Every event involved in a replay, head read, mutation, or history page",
+      "claim": "Touched events are decoded from canonical bytes and reconciled with duplicated columns."
+    },
+    {
+      "id": "machine-output",
+      "kind": "python",
+      "path": "src/recall_ledger/cli.py",
+      "target": "run_cli",
+      "match": "defined",
+      "expected": "function",
+      "claim": "The CLI serializes a result only after the operation and ledger close settle."
+    },
+    {
+      "id": "scope-boundary",
+      "kind": "python",
+      "path": "src/recall_ledger/cli.py",
+      "target": "__doc__",
+      "match": "contains",
+      "expected": "This module does not authenticate tenants, infer identity from note content, or",
+      "claim": "The operator CLI is not an authentication, search, or model boundary."
+    },
+    {
+      "id": "logical-deletion",
+      "kind": "contract",
+      "path": "docs/transaction-contract.md",
+      "target": "optimistic-concurrency-and-terminal-state",
+      "match": "contains",
+      "expected": "This is logical deletion, not physical",
+      "claim": "A tombstone hides the live note but does not erase earlier event history."
+    }
+  ],
+  "lanes": [
+    {
+      "id": "caller-lane",
+      "binding": "trusted-context",
+      "label": "TRUSTED CALLER",
+      "x": 40,
+      "y": 150,
+      "width": 250,
+      "height": 680
+    },
+    {
+      "id": "cli-lane",
+      "binding": "cli-entry",
+      "label": "INSTALLED CLI",
+      "x": 315,
+      "y": 150,
+      "width": 300,
+      "height": 680
+    },
+    {
+      "id": "core-lane",
+      "binding": "ledger-api",
+      "label": "TENANT-SCOPED LEDGER CORE",
+      "x": 640,
+      "y": 150,
+      "width": 520,
+      "height": 680
+    },
+    {
+      "id": "storage-lane",
+      "binding": "event-schema",
+      "label": "VERSIONED DURABLE SQLITE",
+      "x": 1185,
+      "y": 150,
+      "width": 375,
+      "height": 680
+    }
+  ],
+  "nodes": [
+    {
+      "id": "caller-context",
+      "binding": "trusted-context",
+      "lane": "caller-lane",
+      "label": "Operator",
+      "detail": [
+        "owner-only root",
+        "caller tenant ID",
+        "IDs are not auth"
+      ],
+      "x": 70,
+      "y": 295,
+      "width": 190,
+      "height": 150,
+      "variant": "neutral"
+    },
+    {
+      "id": "bounded-cli-input",
+      "binding": "bounded-input",
+      "lane": "cli-lane",
+      "label": "Bounded input",
+      "detail": [
+        "no argv abbreviations",
+        "strict UTF-8 JSON",
+        "closed content shape"
+      ],
+      "x": 345,
+      "y": 210,
+      "width": 240,
+      "height": 130,
+      "variant": "accent"
+    },
+    {
+      "id": "command-dispatch",
+      "binding": "dispatch",
+      "lane": "cli-lane",
+      "label": "Dispatch",
+      "detail": [
+        "write commands",
+        "get · head · history",
+        "open → execute → close"
+      ],
+      "x": 345,
+      "y": 390,
+      "width": 240,
+      "height": 130,
+      "variant": "primary"
+    },
+    {
+      "id": "machine-json-output",
+      "binding": "machine-output",
+      "lane": "cli-lane",
+      "label": "Machine output",
+      "detail": [
+        "JSON or history JSONL",
+        "stdout or stderr JSON",
+        "stable exit categories"
+      ],
+      "x": 345,
+      "y": 620,
+      "width": 240,
+      "height": 130,
+      "variant": "output"
+    },
+    {
+      "id": "public-ledger-api",
+      "binding": "ledger-api",
+      "lane": "core-lane",
+      "label": "Ledger API",
+      "detail": [
+        "tenant calls",
+        "typed results",
+        "process / thread"
+      ],
+      "x": 650,
+      "y": 205,
+      "width": 185,
+      "height": 135,
+      "variant": "primary"
+    },
+    {
+      "id": "write-transaction",
+      "binding": "write-guard",
+      "lane": "core-lane",
+      "label": "Write txn",
+      "detail": [
+        "BEGIN now",
+        "replay first",
+        "commit proof"
+      ],
+      "x": 960,
+      "y": 205,
+      "width": 185,
+      "height": 135,
+      "variant": "strong"
+    },
+    {
+      "id": "canonical-event",
+      "binding": "event-contract",
+      "lane": "core-lane",
+      "label": "Event envelope",
+      "detail": [
+        "closed event types",
+        "canonical JSON",
+        "SHA-256 prev hash"
+      ],
+      "x": 675,
+      "y": 440,
+      "width": 210,
+      "height": 145,
+      "variant": "neutral"
+    },
+    {
+      "id": "verified-projection",
+      "binding": "row-reconciliation",
+      "lane": "core-lane",
+      "label": "Verified reads",
+      "detail": [
+        "decode event bytes",
+        "check row + head",
+        "history page proof"
+      ],
+      "x": 900,
+      "y": 600,
+      "width": 210,
+      "height": 145,
+      "variant": "primary"
+    },
+    {
+      "id": "event-log",
+      "binding": "event-schema",
+      "lane": "storage-lane",
+      "label": "ledger_events",
+      "detail": [
+        "API append-only intent",
+        "tenant/note/revision key",
+        "unique tenant command"
+      ],
+      "x": 1240,
+      "y": 410,
+      "width": 280,
+      "height": 150,
+      "variant": "storage"
+    },
+    {
+      "id": "head-projection",
+      "binding": "head-schema",
+      "lane": "storage-lane",
+      "label": "note_heads",
+      "detail": [
+        "one tenant/note pointer",
+        "latest rev + event hash",
+        "logical tombstone state"
+      ],
+      "x": 1240,
+      "y": 650,
+      "width": 280,
+      "height": 145,
+      "variant": "storage"
+    }
+  ],
+  "edges": [
+    {
+      "id": "context-to-input",
+      "binding": "trusted-context",
+      "from": "caller-context",
+      "to": "bounded-cli-input",
+      "label": "tenant ID",
+      "label_x": 325,
+      "label_y": 370,
+      "style": "solid",
+      "points": [
+        [260, 370],
+        [325, 370],
+        [325, 275],
+        [345, 275]
+      ]
+    },
+    {
+      "id": "input-to-dispatch",
+      "binding": "bounded-input",
+      "from": "bounded-cli-input",
+      "to": "command-dispatch",
+      "label": "validated input",
+      "label_x": 470,
+      "label_y": 366,
+      "style": "solid",
+      "points": [
+        [465, 340],
+        [465, 390]
+      ]
+    },
+    {
+      "id": "dispatch-to-api",
+      "binding": "dispatch",
+      "from": "command-dispatch",
+      "to": "public-ledger-api",
+      "label": "one operation",
+      "label_x": 660,
+      "label_y": 370,
+      "style": "solid",
+      "points": [
+        [585, 455],
+        [625, 455],
+        [625, 272],
+        [650, 272]
+      ]
+    },
+    {
+      "id": "api-to-transaction",
+      "binding": "write-guard",
+      "from": "public-ledger-api",
+      "to": "write-transaction",
+      "label": "mutations",
+      "label_x": 897,
+      "label_y": 272,
+      "style": "solid",
+      "points": [
+        [835, 272],
+        [960, 272]
+      ]
+    },
+    {
+      "id": "api-to-read-verifier",
+      "binding": "history-read",
+      "from": "public-ledger-api",
+      "to": "verified-projection",
+      "label": "verified reads",
+      "label_x": 590,
+      "label_y": 600,
+      "style": "dashed",
+      "points": [
+        [730, 340],
+        [730, 385],
+        [630, 385],
+        [630, 680],
+        [880, 680],
+        [880, 650],
+        [900, 650]
+      ]
+    },
+    {
+      "id": "transaction-to-event",
+      "binding": "transition-order",
+      "from": "write-transaction",
+      "to": "canonical-event",
+      "label": "new command: derive",
+      "label_x": 800,
+      "label_y": 420,
+      "style": "solid",
+      "points": [
+        [1020, 340],
+        [1020, 405],
+        [780, 405],
+        [780, 440]
+      ]
+    },
+    {
+      "id": "event-to-log",
+      "binding": "insert-event",
+      "from": "canonical-event",
+      "to": "event-log",
+      "label": "append event",
+      "label_x": 1060,
+      "label_y": 510,
+      "style": "solid",
+      "points": [
+        [885, 510],
+        [1240, 510]
+      ]
+    },
+    {
+      "id": "log-to-head",
+      "binding": "head-write",
+      "from": "event-log",
+      "to": "head-projection",
+      "label": "head insert / CAS",
+      "label_x": 1380,
+      "label_y": 605,
+      "style": "solid",
+      "points": [
+        [1380, 560],
+        [1380, 650]
+      ]
+    },
+    {
+      "id": "log-to-verifier",
+      "binding": "history-read",
+      "from": "event-log",
+      "to": "verified-projection",
+      "label": "history page",
+      "label_x": 1100,
+      "label_y": 575,
+      "style": "dashed",
+      "points": [
+        [1240, 540],
+        [1210, 540],
+        [1210, 575],
+        [1000, 575],
+        [1000, 600]
+      ]
+    },
+    {
+      "id": "head-to-verifier",
+      "binding": "head-read",
+      "from": "head-projection",
+      "to": "verified-projection",
+      "label": "verify head",
+      "label_x": 1175,
+      "label_y": 700,
+      "style": "dashed",
+      "points": [
+        [1240, 700],
+        [1110, 700]
+      ]
+    },
+    {
+      "id": "verifier-to-output",
+      "binding": "machine-output",
+      "from": "verified-projection",
+      "to": "machine-json-output",
+      "label": "verified result",
+      "label_x": 760,
+      "label_y": 730,
+      "style": "solid",
+      "points": [
+        [900, 730],
+        [620, 730],
+        [620, 685],
+        [585, 685]
+      ]
+    },
+    {
+      "id": "output-to-caller",
+      "binding": "machine-output",
+      "from": "machine-json-output",
+      "to": "caller-context",
+      "label": "stdout / stderr JSON",
+      "label_x": 300,
+      "label_y": 550,
+      "style": "solid",
+      "points": [
+        [345, 685],
+        [300, 685],
+        [300, 420],
+        [260, 420]
+      ]
+    }
+  ],
+  "notes": [
+    {
+      "id": "replay-bypass-note",
+      "binding": "transition-order",
+      "label": "Exact replay bypass",
+      "text": [
+        "Stored event returns after proof.",
+        "No event append or head write."
+      ],
+      "x": 1190,
+      "y": 220,
+      "width": 330,
+      "variant": "accent"
+    },
+    {
+      "id": "scope-note",
+      "binding": "scope-boundary",
+      "label": "Implemented scope",
+      "text": [
+        "No tenant authentication, search, or model integration is implemented.",
+        "One local operator invocation is shown; no server or background worker."
+      ],
+      "x": 55,
+      "y": 850,
+      "width": 710,
+      "variant": "accent"
+    },
+    {
+      "id": "deletion-note",
+      "binding": "logical-deletion",
+      "label": "Deletion boundary",
+      "text": [
+        "Tombstones hide the live note; earlier events remain in privileged history.",
+        "Hash links reveal drift only relative to a separately trusted expected tip."
+      ],
+      "x": 835,
+      "y": 850,
+      "width": 710,
+      "variant": "neutral"
+    }
+  ]
+}
