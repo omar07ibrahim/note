@@ -21,6 +21,9 @@ classifiers = [
 ]
 dependencies = []
 
+[project.scripts]
+recall-ledger = "recall_ledger.cli:main"
+
 [project.urls]
 Repository = "https://github.com/omar07ibrahim/note"
 Issues = "https://github.com/omar07ibrahim/note/issues"
