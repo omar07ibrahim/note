@@ -13,6 +13,7 @@ from typing import Any, cast
 
 import pytest
 
+import recall_ledger._ledger_operations as operations_module
 import recall_ledger.events as events_module
 import recall_ledger.storage as storage_module
 from recall_ledger import (
@@ -234,8 +235,8 @@ def test_atomic_chain_replay_visibility_history_and_reopen(
     directory = secure_directory(tmp_path)
     ids = Sequence(iter((NOTE_A,)))
     clock = Sequence(iter((100, 90, 101)))
-    monkeypatch.setattr(storage_module, "_new_note_id", ids)
-    monkeypatch.setattr(storage_module, "_utc_now_us", clock)
+    monkeypatch.setattr(operations_module, "_new_note_id", ids)
+    monkeypatch.setattr(operations_module, "_utc_now_us", clock)
 
     with SQLiteLedger.open(directory) as ledger:
         created = ledger.create_note(
@@ -365,8 +366,8 @@ def test_idempotency_conflicts_precede_state_and_clock_checks(
     directory = secure_directory(tmp_path)
     ids = Sequence(iter((NOTE_A,)))
     clock = Sequence(iter((10, 11, 12)))
-    monkeypatch.setattr(storage_module, "_new_note_id", ids)
-    monkeypatch.setattr(storage_module, "_utc_now_us", clock)
+    monkeypatch.setattr(operations_module, "_new_note_id", ids)
+    monkeypatch.setattr(operations_module, "_utc_now_us", clock)
 
     with SQLiteLedger.open(directory) as ledger:
         ledger.create_note(tenant_id=TENANT_A, command_id=CREATE, content=CONTENT_V1)
@@ -452,8 +453,8 @@ def test_new_commands_enforce_missing_revision_and_terminal_state_without_clock(
     directory = secure_directory(tmp_path)
     ids = Sequence(iter((NOTE_A,)))
     clock = Sequence(iter((10, 11)))
-    monkeypatch.setattr(storage_module, "_new_note_id", ids)
-    monkeypatch.setattr(storage_module, "_utc_now_us", clock)
+    monkeypatch.setattr(operations_module, "_new_note_id", ids)
+    monkeypatch.setattr(operations_module, "_utc_now_us", clock)
 
     with SQLiteLedger.open(directory) as ledger:
         with pytest.raises(LedgerStorageError) as missing:
@@ -521,7 +522,7 @@ def test_new_commands_enforce_missing_revision_and_terminal_state_without_clock(
 def test_exhausted_revision_fails_before_clock(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    intent = storage_module._revise_intent(
+    intent = operations_module._revise_intent(
         tenant_id=TENANT_A,
         note_id=NOTE_A,
         command_id=REVISE,
@@ -532,16 +533,16 @@ def test_exhausted_revision_fails_before_clock(
         LedgerEvent,
         SimpleNamespace(kind=EventKind.CREATED, revision=MAX_REVISION),
     )
-    monkeypatch.setattr(storage_module, "_load_command_event", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(storage_module, "_load_head", lambda *_arguments: parent)
+    monkeypatch.setattr(operations_module, "_load_command_event", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(operations_module, "_load_head", lambda *_arguments: parent)
     monkeypatch.setattr(
-        storage_module,
+        operations_module,
         "_utc_now_us",
         lambda: (_ for _ in ()).throw(AssertionError("clock must stay unread")),
     )
 
     with pytest.raises(ContractViolation) as captured:
-        storage_module._transition_in_transaction(
+        operations_module._transition_in_transaction(
             cast(sqlite3.Connection, object()),
             intent,
         )
@@ -553,9 +554,9 @@ def test_tenant_isolation_allows_same_identifiers_without_cross_tenant_disclosur
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     directory = secure_directory(tmp_path)
-    monkeypatch.setattr(storage_module, "_new_note_id", lambda: NOTE_A)
+    monkeypatch.setattr(operations_module, "_new_note_id", lambda: NOTE_A)
     clock = Sequence(iter((10, 20)))
-    monkeypatch.setattr(storage_module, "_utc_now_us", clock)
+    monkeypatch.setattr(operations_module, "_utc_now_us", clock)
 
     with SQLiteLedger.open(directory) as ledger:
         first = ledger.create_note(
@@ -702,8 +703,8 @@ def test_clock_values_fail_closed_without_writes(
     clock_value: object,
 ) -> None:
     directory = secure_directory(tmp_path)
-    monkeypatch.setattr(storage_module, "_new_note_id", lambda: NOTE_A)
-    monkeypatch.setattr(storage_module, "_utc_now_us", lambda: clock_value)
+    monkeypatch.setattr(operations_module, "_new_note_id", lambda: NOTE_A)
+    monkeypatch.setattr(operations_module, "_utc_now_us", lambda: clock_value)
 
     with SQLiteLedger.open(directory) as ledger:
         before = table_snapshot(ledger)
@@ -723,12 +724,12 @@ def test_clock_exception_is_safe_and_rolls_back(
 ) -> None:
     directory = secure_directory(tmp_path)
     private = "private-clock-diagnostic"
-    monkeypatch.setattr(storage_module, "_new_note_id", lambda: NOTE_A)
+    monkeypatch.setattr(operations_module, "_new_note_id", lambda: NOTE_A)
 
     def fail_clock() -> int:
         raise RuntimeError(private)
 
-    monkeypatch.setattr(storage_module, "_utc_now_us", fail_clock)
+    monkeypatch.setattr(operations_module, "_utc_now_us", fail_clock)
     with SQLiteLedger.open(directory) as ledger:
         with pytest.raises(LedgerStorageError) as captured:
             ledger.create_note(
@@ -748,8 +749,8 @@ def test_note_id_collisions_are_tenant_scoped_bounded_and_clock_late(
     directory = secure_directory(tmp_path)
     ids = Sequence(iter((NOTE_A, NOTE_A, NOTE_B, NOTE_A)))
     clock = Sequence(iter((10, 11, 12)))
-    monkeypatch.setattr(storage_module, "_new_note_id", ids)
-    monkeypatch.setattr(storage_module, "_utc_now_us", clock)
+    monkeypatch.setattr(operations_module, "_new_note_id", ids)
+    monkeypatch.setattr(operations_module, "_utc_now_us", clock)
 
     with SQLiteLedger.open(directory) as ledger:
         first = ledger.create_note(
@@ -773,7 +774,7 @@ def test_note_id_collisions_are_tenant_scoped_bounded_and_clock_late(
         assert ids.calls == 4
         assert clock.calls == 3
 
-        monkeypatch.setattr(storage_module, "_new_note_id", lambda: NOTE_A)
+        monkeypatch.setattr(operations_module, "_new_note_id", lambda: NOTE_A)
         before = table_snapshot(ledger)
         with pytest.raises(LedgerStorageError) as exhausted:
             ledger.create_note(
@@ -800,8 +801,8 @@ def test_note_id_factory_failures_are_safe(
 ) -> None:
     directory = secure_directory(tmp_path)
     clock = Sequence(iter((10,)))
-    monkeypatch.setattr(storage_module, "_new_note_id", factory)
-    monkeypatch.setattr(storage_module, "_utc_now_us", clock)
+    monkeypatch.setattr(operations_module, "_new_note_id", factory)
+    monkeypatch.setattr(operations_module, "_utc_now_us", clock)
 
     with SQLiteLedger.open(directory) as ledger:
         with pytest.raises(LedgerStorageError) as captured:
@@ -821,8 +822,8 @@ def test_competing_writers_serialize_revision_and_exact_replay(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     directory = secure_directory(tmp_path)
-    monkeypatch.setattr(storage_module, "_new_note_id", lambda: NOTE_A)
-    monkeypatch.setattr(storage_module, "_utc_now_us", lambda: 10)
+    monkeypatch.setattr(operations_module, "_new_note_id", lambda: NOTE_A)
+    monkeypatch.setattr(operations_module, "_utc_now_us", lambda: 10)
     with SQLiteLedger.open(directory) as ledger:
         ledger.create_note(tenant_id=TENANT_A, command_id=CREATE, content=CONTENT_V1)
 
@@ -894,8 +895,8 @@ def test_concurrent_same_command_with_different_intent_conflicts(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     directory = secure_directory(tmp_path)
-    monkeypatch.setattr(storage_module, "_new_note_id", lambda: NOTE_A)
-    monkeypatch.setattr(storage_module, "_utc_now_us", lambda: 10)
+    monkeypatch.setattr(operations_module, "_new_note_id", lambda: NOTE_A)
+    monkeypatch.setattr(operations_module, "_utc_now_us", lambda: 10)
     barrier = threading.Barrier(2)
     outcomes: list[tuple[str, object]] = []
     guard = threading.Lock()
@@ -936,8 +937,8 @@ def test_real_writer_contention_is_bounded_and_retryable(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     directory = secure_directory(tmp_path)
-    monkeypatch.setattr(storage_module, "_new_note_id", lambda: NOTE_A)
-    monkeypatch.setattr(storage_module, "_utc_now_us", lambda: 10)
+    monkeypatch.setattr(operations_module, "_new_note_id", lambda: NOTE_A)
+    monkeypatch.setattr(operations_module, "_utc_now_us", lambda: 10)
 
     with (
         SQLiteLedger.open(directory) as first,
@@ -993,24 +994,24 @@ def test_process_crash_reconciles_by_exact_command_retry(
         import os
         import sys
 
-        import recall_ledger.storage as storage
+        import recall_ledger._ledger_operations as operations
         from recall_ledger import CommandId, NoteContent, NoteId, SQLiteLedger, TenantId
 
         tenant = TenantId("tn_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
         command = CommandId("cmd_00000000000000000000000000000001")
         note = NoteId("nt_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-        storage._new_note_id = lambda: note
-        storage._utc_now_us = lambda: 10
+        operations._new_note_id = lambda: note
+        operations._utc_now_us = lambda: 10
         ledger = SQLiteLedger.open(sys.argv[1])
 
         if sys.argv[2] == "before_commit":
-            original = storage._insert_head
+            original = operations._insert_head
 
             def crash_after_head(connection, event):
                 original(connection, event)
                 os._exit(23)
 
-            storage._insert_head = crash_after_head
+            operations._insert_head = crash_after_head
         else:
             connection = ledger._connection
 
@@ -1050,8 +1051,8 @@ def test_process_crash_reconciles_by_exact_command_retry(
     assert completed.stdout == ""
     assert completed.stderr == ""
 
-    monkeypatch.setattr(storage_module, "_new_note_id", lambda: NOTE_A)
-    monkeypatch.setattr(storage_module, "_utc_now_us", lambda: 10)
+    monkeypatch.setattr(operations_module, "_new_note_id", lambda: NOTE_A)
+    monkeypatch.setattr(operations_module, "_utc_now_us", lambda: 10)
     with SQLiteLedger.open(directory) as ledger:
         retry = ledger.create_note(
             tenant_id=TENANT_A,
@@ -1082,8 +1083,8 @@ def test_begin_failure_states_are_bounded(
     expected: str,
 ) -> None:
     directory = secure_directory(tmp_path)
-    monkeypatch.setattr(storage_module, "_new_note_id", lambda: NOTE_A)
-    monkeypatch.setattr(storage_module, "_utc_now_us", lambda: 10)
+    monkeypatch.setattr(operations_module, "_new_note_id", lambda: NOTE_A)
+    monkeypatch.setattr(operations_module, "_utc_now_us", lambda: 10)
     ledger = SQLiteLedger.open(directory)
     proxy = install_proxy(ledger, mode)
     try:
@@ -1110,8 +1111,8 @@ def test_begin_base_exception_rolls_back_and_preexisting_state_poisons(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     directory = secure_directory(tmp_path)
-    monkeypatch.setattr(storage_module, "_new_note_id", lambda: NOTE_A)
-    monkeypatch.setattr(storage_module, "_utc_now_us", lambda: 10)
+    monkeypatch.setattr(operations_module, "_new_note_id", lambda: NOTE_A)
+    monkeypatch.setattr(operations_module, "_utc_now_us", lambda: 10)
 
     ledger = SQLiteLedger.open(directory)
     proxy = install_proxy(ledger, "begin_base_after")
@@ -1178,8 +1179,8 @@ def test_commit_failure_states_require_safe_retry(
     exception_kind: str,
 ) -> None:
     directory = secure_directory(tmp_path)
-    monkeypatch.setattr(storage_module, "_new_note_id", lambda: NOTE_A)
-    monkeypatch.setattr(storage_module, "_utc_now_us", lambda: 10)
+    monkeypatch.setattr(operations_module, "_new_note_id", lambda: NOTE_A)
+    monkeypatch.setattr(operations_module, "_utc_now_us", lambda: 10)
     ledger = SQLiteLedger.open(directory)
     proxy = install_proxy(ledger, mode)
     try:
@@ -1223,7 +1224,7 @@ def test_transition_guard_rolls_back_interrupt_during_replay_dispatch(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    original_transition = storage_module._transition_in_transaction
+    original_transition = operations_module._transition_in_transaction
 
     class InterruptingResult:
         @property
@@ -1238,9 +1239,13 @@ def test_transition_guard_rolls_back_interrupt_during_replay_dispatch(
         return InterruptingResult()
 
     directory = secure_directory(tmp_path)
-    monkeypatch.setattr(storage_module, "_transition_in_transaction", interrupt_after_transition)
-    monkeypatch.setattr(storage_module, "_new_note_id", lambda: NOTE_A)
-    monkeypatch.setattr(storage_module, "_utc_now_us", lambda: 10)
+    monkeypatch.setattr(
+        operations_module,
+        "_transition_in_transaction",
+        interrupt_after_transition,
+    )
+    monkeypatch.setattr(operations_module, "_new_note_id", lambda: NOTE_A)
+    monkeypatch.setattr(operations_module, "_utc_now_us", lambda: 10)
     with SQLiteLedger.open(directory) as ledger:
         connection = ledger._connection
         assert connection is not None
@@ -1298,8 +1303,8 @@ def test_post_begin_state_probe_interrupt_is_contained(
     operation: str,
 ) -> None:
     directory = secure_directory(tmp_path)
-    monkeypatch.setattr(storage_module, "_new_note_id", lambda: NOTE_A)
-    monkeypatch.setattr(storage_module, "_utc_now_us", lambda: 10)
+    monkeypatch.setattr(operations_module, "_new_note_id", lambda: NOTE_A)
+    monkeypatch.setattr(operations_module, "_utc_now_us", lambda: 10)
     ledger = SQLiteLedger.open(directory)
     proxy = install_proxy(ledger, "begin_probe_base")
     try:
@@ -1323,8 +1328,8 @@ def test_write_post_commit_probe_interrupt_is_outcome_unknown(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     directory = secure_directory(tmp_path)
-    monkeypatch.setattr(storage_module, "_new_note_id", lambda: NOTE_A)
-    monkeypatch.setattr(storage_module, "_utc_now_us", lambda: 10)
+    monkeypatch.setattr(operations_module, "_new_note_id", lambda: NOTE_A)
+    monkeypatch.setattr(operations_module, "_utc_now_us", lambda: 10)
     ledger = SQLiteLedger.open(directory)
     proxy = install_proxy(ledger, "commit_probe_base")
     try:
@@ -1356,8 +1361,8 @@ def test_commit_failure_with_unreadable_state_is_outcome_unknown(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     directory = secure_directory(tmp_path)
-    monkeypatch.setattr(storage_module, "_new_note_id", lambda: NOTE_A)
-    monkeypatch.setattr(storage_module, "_utc_now_us", lambda: 10)
+    monkeypatch.setattr(operations_module, "_new_note_id", lambda: NOTE_A)
+    monkeypatch.setattr(operations_module, "_utc_now_us", lambda: 10)
     ledger = SQLiteLedger.open(directory)
     proxy = install_proxy(ledger, "commit_call_probe_base")
     try:
@@ -1389,8 +1394,8 @@ def test_interrupt_after_clean_commit_before_result_delivery_is_unknown(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     directory = secure_directory(tmp_path)
-    monkeypatch.setattr(storage_module, "_new_note_id", lambda: NOTE_A)
-    monkeypatch.setattr(storage_module, "_utc_now_us", lambda: 10)
+    monkeypatch.setattr(operations_module, "_new_note_id", lambda: NOTE_A)
+    monkeypatch.setattr(operations_module, "_utc_now_us", lambda: 10)
 
     def interrupt_committed_result(_result: TransitionResult) -> TransitionResult:
         raise KeyboardInterrupt
@@ -1416,11 +1421,14 @@ def test_interrupt_after_clean_commit_before_result_delivery_is_unknown(
         ledger.close()
 
     with SQLiteLedger.open(directory) as reopened:
-        assert reopened.create_note(
-            tenant_id=TENANT_A,
-            command_id=CREATE,
-            content=CONTENT_V1,
-        ).replayed is True
+        assert (
+            reopened.create_note(
+                tenant_id=TENANT_A,
+                command_id=CREATE,
+                content=CONTENT_V1,
+            ).replayed
+            is True
+        )
 
 
 def test_history_post_commit_probe_interrupt_leaves_clean_connection(tmp_path: Path) -> None:
@@ -1442,7 +1450,7 @@ def test_post_rollback_probe_interrupt_poisons_connection(
 ) -> None:
     directory = secure_directory(tmp_path)
     monkeypatch.setattr(
-        storage_module,
+        operations_module,
         "_transition_in_transaction",
         lambda *_arguments: (_ for _ in ()).throw(
             LedgerStorageError("INJECTED_FAILURE", "safe failure")
@@ -1472,7 +1480,7 @@ def test_rollback_wrapper_defensively_poisons_if_helper_escapes(
 ) -> None:
     directory = secure_directory(tmp_path)
     monkeypatch.setattr(
-        storage_module,
+        operations_module,
         "_transition_in_transaction",
         lambda *_arguments: (_ for _ in ()).throw(
             LedgerStorageError("INJECTED_FAILURE", "safe failure")
@@ -1505,7 +1513,7 @@ def test_nested_failure_during_settlement_cannot_escape_unpoisoned(
 ) -> None:
     directory = secure_directory(tmp_path)
     monkeypatch.setattr(
-        storage_module,
+        operations_module,
         "_transition_in_transaction",
         lambda *_arguments: (_ for _ in ()).throw(
             LedgerStorageError("INJECTED_FAILURE", "safe failure")
@@ -1544,15 +1552,15 @@ def test_rollback_uncertainty_poisons_but_close_recovers(
     mode: str,
 ) -> None:
     directory = secure_directory(tmp_path)
-    monkeypatch.setattr(storage_module, "_new_note_id", lambda: NOTE_A)
-    monkeypatch.setattr(storage_module, "_utc_now_us", lambda: 10)
-    original_insert = storage_module._insert_head
+    monkeypatch.setattr(operations_module, "_new_note_id", lambda: NOTE_A)
+    monkeypatch.setattr(operations_module, "_utc_now_us", lambda: 10)
+    original_insert = operations_module._insert_head
 
     def fail_after_head(connection: sqlite3.Connection, event: LedgerEvent) -> None:
         original_insert(connection, event)
         raise LedgerStorageError("INJECTED_FAILURE", "synthetic safe failure")
 
-    monkeypatch.setattr(storage_module, "_insert_head", fail_after_head)
+    monkeypatch.setattr(operations_module, "_insert_head", fail_after_head)
     ledger = SQLiteLedger.open(directory)
     install_proxy(ledger, mode)
     try:
@@ -1578,7 +1586,7 @@ def test_rollback_uncertainty_poisons_but_close_recovers(
     finally:
         ledger.close()
 
-    monkeypatch.setattr(storage_module, "_insert_head", original_insert)
+    monkeypatch.setattr(operations_module, "_insert_head", original_insert)
     with SQLiteLedger.open(directory) as reopened:
         assert reopened.get_head(tenant_id=TENANT_A, note_id=NOTE_A) is None
         assert table_snapshot(reopened) == ()
@@ -1591,31 +1599,31 @@ def test_injected_write_failures_rollback_without_orphans(
     failure_point: str,
 ) -> None:
     directory = secure_directory(tmp_path)
-    monkeypatch.setattr(storage_module, "_new_note_id", lambda: NOTE_A)
-    monkeypatch.setattr(storage_module, "_utc_now_us", lambda: 10)
+    monkeypatch.setattr(operations_module, "_new_note_id", lambda: NOTE_A)
+    monkeypatch.setattr(operations_module, "_utc_now_us", lambda: 10)
     with SQLiteLedger.open(directory) as ledger:
         if failure_point == "cas":
             ledger.create_note(tenant_id=TENANT_A, command_id=CREATE, content=CONTENT_V1)
         before = table_snapshot(ledger)
 
         if failure_point == "event":
-            original = storage_module._insert_event
+            original = operations_module._insert_event
 
             def fail_after_event(connection: sqlite3.Connection, event: LedgerEvent) -> None:
                 original(connection, event)
                 raise LedgerStorageError("INJECTED_FAILURE", "safe failure")
 
-            monkeypatch.setattr(storage_module, "_insert_event", fail_after_event)
+            monkeypatch.setattr(operations_module, "_insert_event", fail_after_event)
         elif failure_point == "head":
-            original_head = storage_module._insert_head
+            original_head = operations_module._insert_head
 
             def fail_after_head(connection: sqlite3.Connection, event: LedgerEvent) -> None:
                 original_head(connection, event)
                 raise LedgerStorageError("INJECTED_FAILURE", "safe failure")
 
-            monkeypatch.setattr(storage_module, "_insert_head", fail_after_head)
+            monkeypatch.setattr(operations_module, "_insert_head", fail_after_head)
         elif failure_point == "cas":
-            original_cas = storage_module._cas_head
+            original_cas = operations_module._cas_head
 
             def fail_after_cas(
                 connection: sqlite3.Connection,
@@ -1626,7 +1634,7 @@ def test_injected_write_failures_rollback_without_orphans(
                 original_cas(connection, previous=previous, event=event)
                 raise LedgerStorageError("INJECTED_FAILURE", "safe failure")
 
-            monkeypatch.setattr(storage_module, "_cas_head", fail_after_cas)
+            monkeypatch.setattr(operations_module, "_cas_head", fail_after_cas)
         elif failure_point == "precommit":
             original_check = SQLiteLedger._assert_schema_cookie
             calls = 0
@@ -1643,7 +1651,7 @@ def test_injected_write_failures_rollback_without_orphans(
 
             monkeypatch.setattr(SQLiteLedger, "_assert_schema_cookie", fail_third_check)
         else:
-            monkeypatch.setattr(storage_module, "_load_event", lambda *_arguments: None)
+            monkeypatch.setattr(operations_module, "_load_event", lambda *_arguments: None)
 
         with pytest.raises(LedgerStorageError):
             if failure_point == "cas":
@@ -1669,10 +1677,10 @@ def test_sqlite_transition_error_is_mapped_after_verified_rollback(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     directory = secure_directory(tmp_path)
-    monkeypatch.setattr(storage_module, "_new_note_id", lambda: NOTE_A)
-    monkeypatch.setattr(storage_module, "_utc_now_us", lambda: 10)
+    monkeypatch.setattr(operations_module, "_new_note_id", lambda: NOTE_A)
+    monkeypatch.setattr(operations_module, "_utc_now_us", lambda: 10)
     monkeypatch.setattr(
-        storage_module,
+        operations_module,
         "_transition_in_transaction",
         lambda *_arguments: (_ for _ in ()).throw(sqlite_failure(sqlite3.SQLITE_CONSTRAINT)),
     )
@@ -1695,7 +1703,7 @@ def test_read_error_paths_rollback_snapshot_and_map_sqlite(
     directory = secure_directory(tmp_path)
     with SQLiteLedger.open(directory) as ledger:
         monkeypatch.setattr(
-            storage_module,
+            operations_module,
             "_load_head",
             lambda *_arguments: (_ for _ in ()).throw(sqlite_failure(sqlite3.SQLITE_IOERR)),
         )
@@ -1710,7 +1718,7 @@ def test_read_error_paths_rollback_snapshot_and_map_sqlite(
 
         monkeypatch.undo()
         monkeypatch.setattr(
-            storage_module,
+            operations_module,
             "_history_in_transaction",
             lambda *_arguments, **_keywords: (_ for _ in ()).throw(
                 sqlite_failure(sqlite3.SQLITE_IOERR)
@@ -1722,7 +1730,7 @@ def test_read_error_paths_rollback_snapshot_and_map_sqlite(
         assert ledger.status().schema_version == 1
 
         monkeypatch.setattr(
-            storage_module,
+            operations_module,
             "_history_in_transaction",
             lambda *_arguments, **_keywords: (_ for _ in ()).throw(KeyboardInterrupt()),
         )
@@ -1764,8 +1772,8 @@ def test_sqlite_primary_codes_have_stable_safe_mapping(primary: int, code: str) 
 
 
 def test_default_clock_and_identifier_wrappers_are_canonical() -> None:
-    timestamp = storage_module._utc_now_us()
-    note_id = storage_module._new_note_id()
+    timestamp = operations_module._utc_now_us()
+    note_id = operations_module._new_note_id()
     assert type(timestamp) is int
     assert 0 <= timestamp <= MAX_RECORDED_AT_US
     assert note_id.startswith("nt_")
@@ -1788,14 +1796,14 @@ def test_replay_projection_requires_a_current_terminal_safe_head(
     )
     connection = cast(sqlite3.Connection, object())
 
-    monkeypatch.setattr(storage_module, "_load_head", lambda *_arguments: None)
+    monkeypatch.setattr(operations_module, "_load_head", lambda *_arguments: None)
     with pytest.raises(LedgerStorageError) as absent:
-        storage_module._verify_replayed_projection(connection, created)
+        operations_module._verify_replayed_projection(connection, created)
     assert absent.value.code == "DATABASE_INTEGRITY"
 
-    monkeypatch.setattr(storage_module, "_load_head", lambda *_arguments: alternate_head)
+    monkeypatch.setattr(operations_module, "_load_head", lambda *_arguments: alternate_head)
     with pytest.raises(LedgerStorageError) as stale_terminal:
-        storage_module._verify_replayed_projection(connection, tombstone)
+        operations_module._verify_replayed_projection(connection, tombstone)
     assert stale_terminal.value.code == "DATABASE_INTEGRITY"
 
 
@@ -1819,13 +1827,13 @@ def test_internal_probe_and_cas_failures_map_to_integrity() -> None:
 
     connection = cast(sqlite3.Connection, FakeConnection())
     with pytest.raises(LedgerStorageError) as cas:
-        storage_module._cas_head(connection, previous=created, event=revised)
+        operations_module._cas_head(connection, previous=created, event=revised)
     assert cas.value.code == "DATABASE_INTEGRITY"
     with pytest.raises(LedgerStorageError) as inventory:
-        storage_module._note_storage_exists(connection, TENANT_A, NOTE_A)
+        operations_module._note_storage_exists(connection, TENANT_A, NOTE_A)
     assert inventory.value.code == "DATABASE_INTEGRITY"
     with pytest.raises(LedgerStorageError) as probe:
-        storage_module._load_head(connection, TENANT_A, NOTE_A)
+        operations_module._load_head(connection, TENANT_A, NOTE_A)
     assert probe.value.code == "DATABASE_INTEGRITY"
 
 
@@ -1866,7 +1874,7 @@ def test_row_decoders_reject_blob_column_and_head_drift() -> None:
         row = dict(base)
         row.update(replacement)
         with pytest.raises(LedgerStorageError) as captured:
-            storage_module._decode_event_row(cast(sqlite3.Row, row))
+            operations_module._decode_event_row(cast(sqlite3.Row, row))
         assert captured.value.code == "DATABASE_INTEGRITY"
 
     head_base = dict(base)
@@ -1882,7 +1890,7 @@ def test_row_decoders_reject_blob_column_and_head_drift() -> None:
             "latest_event_hash": event.event_hash,
         }
     )
-    assert storage_module._decode_head_row(cast(sqlite3.Row, head_base)) == event
+    assert operations_module._decode_head_row(cast(sqlite3.Row, head_base)) == event
     for replacement in (
         {"head_tenant_id": TENANT_B},
         {"head_note_id": NOTE_B},
@@ -1904,7 +1912,7 @@ def test_row_decoders_reject_blob_column_and_head_drift() -> None:
         head_row = dict(head_base)
         head_row.update(replacement)
         with pytest.raises(LedgerStorageError) as head:
-            storage_module._decode_head_row(cast(sqlite3.Row, head_row))
+            operations_module._decode_head_row(cast(sqlite3.Row, head_row))
         assert head.value.code == "DATABASE_INTEGRITY"
 
 
@@ -1915,8 +1923,8 @@ def test_live_reads_detect_involved_storage_corruption(
     corruption: str,
 ) -> None:
     directory = secure_directory(tmp_path)
-    monkeypatch.setattr(storage_module, "_new_note_id", lambda: NOTE_A)
-    monkeypatch.setattr(storage_module, "_utc_now_us", lambda: 10)
+    monkeypatch.setattr(operations_module, "_new_note_id", lambda: NOTE_A)
+    monkeypatch.setattr(operations_module, "_utc_now_us", lambda: 10)
     with SQLiteLedger.open(directory) as ledger:
         event = ledger.create_note(
             tenant_id=TENANT_A,
@@ -1983,9 +1991,9 @@ def test_history_detects_missing_anchor_final_head_and_chain_break(
         def execute(self, _statement: str, _parameters: object = ()) -> EmptyResult:
             return EmptyResult()
 
-    monkeypatch.setattr(storage_module, "_load_head", lambda *_arguments: created)
+    monkeypatch.setattr(operations_module, "_load_head", lambda *_arguments: created)
     with pytest.raises(LedgerStorageError) as anchor:
-        storage_module._history_in_transaction(
+        operations_module._history_in_transaction(
             cast(sqlite3.Connection, EmptyConnection()),
             tenant_id=TENANT_A,
             note_id=NOTE_A,
@@ -1996,9 +2004,9 @@ def test_history_detects_missing_anchor_final_head_and_chain_break(
 
     directory = secure_directory(tmp_path)
     monkeypatch.undo()
-    monkeypatch.setattr(storage_module, "_new_note_id", lambda: NOTE_A)
+    monkeypatch.setattr(operations_module, "_new_note_id", lambda: NOTE_A)
     ticks = Sequence(iter((10, 11)))
-    monkeypatch.setattr(storage_module, "_utc_now_us", ticks)
+    monkeypatch.setattr(operations_module, "_utc_now_us", ticks)
     with SQLiteLedger.open(directory) as ledger:
         ledger.create_note(tenant_id=TENANT_A, command_id=CREATE, content=CONTENT_V1)
         ledger.revise_note(
@@ -2010,9 +2018,9 @@ def test_history_detects_missing_anchor_final_head_and_chain_break(
         )
         connection = ledger._connection
         assert connection is not None
-        monkeypatch.setattr(storage_module, "_load_head", lambda *_arguments: created)
+        monkeypatch.setattr(operations_module, "_load_head", lambda *_arguments: created)
         with pytest.raises(LedgerStorageError) as final:
-            storage_module._history_in_transaction(
+            operations_module._history_in_transaction(
                 connection,
                 tenant_id=TENANT_A,
                 note_id=NOTE_A,
@@ -2022,7 +2030,7 @@ def test_history_detects_missing_anchor_final_head_and_chain_break(
         assert final.value.code == "DATABASE_INTEGRITY"
 
     with pytest.raises(LedgerStorageError) as chain:
-        storage_module._verify_event_sequence((created, created))
+        operations_module._verify_event_sequence((created, created))
     assert chain.value.code == "DATABASE_INTEGRITY"
     clean_connection = sqlite3.connect(":memory:")
     try:
@@ -2068,7 +2076,7 @@ def test_history_sequence_rejects_time_hash_revision_and_terminal_breaks() -> No
     parents = (created, created, created, tombstone)
     for parent, successor in zip(parents, cases, strict=True):
         with pytest.raises(LedgerStorageError) as captured:
-            storage_module._verify_event_sequence((parent, successor))
+            operations_module._verify_event_sequence((parent, successor))
         assert captured.value.code == "DATABASE_INTEGRITY"
 
 
@@ -2080,14 +2088,14 @@ def test_history_query_plans_use_bounded_indexes(tmp_path: Path) -> None:
         command_plan = " ".join(
             str(row[3])
             for row in connection.execute(
-                "EXPLAIN QUERY PLAN " + storage_module._LOAD_COMMAND_EVENT_SQL,
+                "EXPLAIN QUERY PLAN " + operations_module._LOAD_COMMAND_EVENT_SQL,
                 (TENANT_A, CREATE),
             )
         )
         history_plan = " ".join(
             str(row[3])
             for row in connection.execute(
-                "EXPLAIN QUERY PLAN " + storage_module._LOAD_HISTORY_SQL,
+                "EXPLAIN QUERY PLAN " + operations_module._LOAD_HISTORY_SQL,
                 (TENANT_A, NOTE_A, 1, 10),
             )
         )
