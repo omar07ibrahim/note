@@ -1,0 +1,29 @@
+# Python bytecode and tool caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments and local configuration
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+
+# Local databases, indexes, and generated evidence
+*.db
+*.db-shm
+*.db-wal
+build/
+dist/
+*.egg-info/
+artifacts/
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
