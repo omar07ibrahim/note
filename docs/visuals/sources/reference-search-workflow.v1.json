@@ -1,0 +1,480 @@
+{
+  "schema_version": 1,
+  "diagram_kind": "architecture",
+  "slug": "reference-search-workflow",
+  "entry": "bounded-query",
+  "title": "Bounded reference-search correctness path",
+  "subtitle": "Compile once, verify the complete tenant snapshot, then rank every live current head",
+  "description": "Source-derived workflow for RecallLedger's dependency-free lexical reference search. A bounded strict UTF-8 query is compiled before one deferred SQLite read snapshot. The operation enumerates the complete bounded tenant head inventory, proves that no tenant event identity is orphaned from that inventory, reconciles every current head from canonical event bytes, excludes verified tombstones, accounts for every live UTF-8 content byte, scores every live head, sorts the complete match set, and only then applies top-K while retaining current-head citations. Capacity or integrity failure aborts the whole operation. The diagram does not represent authorization, a persistent index, a cryptographic signature, or a latency benchmark.",
+  "caption": "Source-derived reference path; complete bounded scan, not a latency benchmark",
+  "canvas": {
+    "width": 2000,
+    "height": 1240
+  },
+  "bindings": [
+    {
+      "id": "query-reader",
+      "kind": "python",
+      "path": "src/recall_ledger/cli.py",
+      "target": "_read_query",
+      "match": "contains",
+      "expected": "payload = _read_bounded_query(stdin) if path_text == \"-\" else _read_query_file(path_text)",
+      "claim": "The CLI obtains query bytes from its bounded stdin or regular-file reader and decodes strict UTF-8."
+    },
+    {
+      "id": "query-compiler",
+      "kind": "python",
+      "path": "src/recall_ledger/retrieval.py",
+      "target": "compile_lexical_query",
+      "match": "contains",
+      "expected": "match_expression=\" AND \".join",
+      "claim": "The production compiler normalizes bounded text, emits inert encoded terms, and joins every unique term with literal AND."
+    },
+    {
+      "id": "public-search",
+      "kind": "python",
+      "path": "src/recall_ledger/storage.py",
+      "target": "SQLiteLedger.search_notes",
+      "match": "contains",
+      "expected": "self._begin_transaction(connection, immediate=False)",
+      "claim": "search_notes compiles the query before opening one deferred read transaction and settles that snapshot before returning."
+    },
+    {
+      "id": "head-inventory",
+      "kind": "python",
+      "path": "src/recall_ledger/_ledger_operations.py",
+      "target": "_load_search_note_ids",
+      "match": "contains",
+      "expected": "(tenant_id, MAX_SEARCH_HEADS + 1)",
+      "claim": "The tenant-head inventory uses a 1,001-row sentinel and rejects more than 1,000 heads."
+    },
+    {
+      "id": "orphan-proof",
+      "kind": "python",
+      "path": "src/recall_ledger/_ledger_operations.py",
+      "target": "_verify_search_event_inventory",
+      "match": "contains",
+      "expected": "tenant ledger events exist outside the note head inventory",
+      "claim": "A bounded distinct-note keyset walk rejects tenant event identities that have no inventoried head."
+    },
+    {
+      "id": "head-verifier",
+      "kind": "python",
+      "path": "src/recall_ledger/_ledger_operations.py",
+      "target": "_load_head",
+      "match": "contains",
+      "expected": "return _decode_head_row(row)",
+      "claim": "Each inventoried identity is loaded through the canonical latest-event and head-projection reconciler."
+    },
+    {
+      "id": "tombstone-exclusion",
+      "kind": "python",
+      "path": "src/recall_ledger/_ledger_operations.py",
+      "target": "_search_in_transaction",
+      "match": "contains",
+      "expected": "if event.kind is EventKind.TOMBSTONED:",
+      "claim": "The live-content path has an explicit branch for a verified tombstone head."
+    },
+    {
+      "id": "utf8-content-accounting",
+      "kind": "python",
+      "path": "src/recall_ledger/_ledger_operations.py",
+      "target": "_search_in_transaction",
+      "match": "contains",
+      "expected": "content_bytes += len(title.encode(\"utf-8\")) + len(body.encode(\"utf-8\"))",
+      "claim": "Title and body lengths enter the cumulative live-content counter as UTF-8 bytes."
+    },
+    {
+      "id": "live-content-bound",
+      "kind": "python",
+      "path": "src/recall_ledger/_ledger_operations.py",
+      "target": "_search_in_transaction",
+      "match": "contains",
+      "expected": "if content_bytes > MAX_SEARCH_LIVE_CONTENT_BYTES:",
+      "claim": "The cumulative live-content byte counter has an explicit configured upper-bound branch."
+    },
+    {
+      "id": "live-head-scoring",
+      "kind": "python",
+      "path": "src/recall_ledger/_ledger_operations.py",
+      "target": "_search_in_transaction",
+      "match": "contains",
+      "expected": "score = score_lexical_content(query, event.content)",
+      "claim": "Each validated live head is passed to the production lexical scorer."
+    },
+    {
+      "id": "match-collection",
+      "kind": "python",
+      "path": "src/recall_ledger/_ledger_operations.py",
+      "target": "_search_in_transaction",
+      "match": "contains",
+      "expected": "hits.append(",
+      "claim": "The transaction explicitly appends each accepted SearchHit to the collected hit list."
+    },
+    {
+      "id": "full-match-sort",
+      "kind": "python",
+      "path": "src/recall_ledger/_ledger_operations.py",
+      "target": "_search_in_transaction",
+      "match": "contains",
+      "expected": "hits.sort(",
+      "claim": "The transaction explicitly sorts the collected hit list."
+    },
+    {
+      "id": "top-k-slice",
+      "kind": "python",
+      "path": "src/recall_ledger/_ledger_operations.py",
+      "target": "_search_in_transaction",
+      "match": "contains",
+      "expected": "hits=tuple(hits[:limit])",
+      "claim": "The returned hit tuple is materialized from the requested list prefix."
+    },
+    {
+      "id": "result-model",
+      "kind": "python",
+      "path": "src/recall_ledger/storage.py",
+      "target": "SearchResults",
+      "match": "defined",
+      "expected": "class",
+      "claim": "SearchResults carries the compiled query, total matches, scan accounting, bounded hits, and current-head citations."
+    },
+    {
+      "id": "fail-closed-contract",
+      "kind": "contract",
+      "path": "docs/storage-boundary.md",
+      "target": "bounded-reference-search",
+      "match": "contains",
+      "expected": "no partial prefix is returned",
+      "claim": "Capacity, normalization, token-stream, or integrity failure aborts the whole reference operation without a partial result."
+    },
+    {
+      "id": "scope-contract",
+      "kind": "contract",
+      "path": "docs/storage-boundary.md",
+      "target": "bounded-reference-search",
+      "match": "contains",
+      "expected": "A citation is a consistency reference, not a signature or an",
+      "claim": "The documented search surface is a correctness oracle rather than authorization, a signature, or a persistent performance index."
+    }
+  ],
+  "lanes": [
+    {
+      "id": "input-lane",
+      "binding": "query-reader",
+      "label": "BOUNDED QUERY INPUT",
+      "x": 40,
+      "y": 150,
+      "width": 330,
+      "height": 1000
+    },
+    {
+      "id": "snapshot-lane",
+      "binding": "public-search",
+      "label": "ONE VERIFIED SQLITE SNAPSHOT",
+      "x": 420,
+      "y": 150,
+      "width": 650,
+      "height": 1000
+    },
+    {
+      "id": "ranking-lane",
+      "binding": "match-collection",
+      "label": "COMPLETE CORPUS RANKING",
+      "x": 1120,
+      "y": 150,
+      "width": 450,
+      "height": 1000
+    },
+    {
+      "id": "result-lane",
+      "binding": "result-model",
+      "label": "BOUNDED RESULT",
+      "x": 1640,
+      "y": 150,
+      "width": 320,
+      "height": 1000
+    }
+  ],
+  "nodes": [
+    {
+      "id": "bounded-query",
+      "binding": "query-reader",
+      "lane": "input-lane",
+      "label": "Bounded query",
+      "detail": [
+        "regular file or stdin",
+        "strict UTF-8, <=1,024 B"
+      ],
+      "x": 75,
+      "y": 210,
+      "width": 250,
+      "height": 110,
+      "variant": "accent"
+    },
+    {
+      "id": "compile-query",
+      "binding": "query-compiler",
+      "lane": "input-lane",
+      "label": "Compile query",
+      "detail": [
+        "NFKC-casefold-NFKC",
+        "inert all-terms AND"
+      ],
+      "x": 75,
+      "y": 365,
+      "width": 250,
+      "height": 110,
+      "variant": "primary"
+    },
+    {
+      "id": "snapshot",
+      "binding": "public-search",
+      "lane": "snapshot-lane",
+      "label": "Deferred read snapshot",
+      "detail": [
+        "BEGIN, schema cookie checked",
+        "one tenant-consistent view"
+      ],
+      "x": 465,
+      "y": 365,
+      "width": 560,
+      "height": 110,
+      "variant": "storage"
+    },
+    {
+      "id": "inventory",
+      "binding": "head-inventory",
+      "lane": "snapshot-lane",
+      "label": "Enumerate every tenant head",
+      "detail": [
+        "tombstones + off-query heads",
+        "<=1,000 or fail closed"
+      ],
+      "x": 465,
+      "y": 520,
+      "width": 560,
+      "height": 110,
+      "variant": "storage"
+    },
+    {
+      "id": "orphan-proof",
+      "binding": "orphan-proof",
+      "lane": "snapshot-lane",
+      "label": "Event-to-head orphan proof",
+      "detail": [
+        "distinct event note IDs",
+        "bounded keyset seeks"
+      ],
+      "x": 465,
+      "y": 675,
+      "width": 560,
+      "height": 110,
+      "variant": "warning"
+    },
+    {
+      "id": "verify-heads",
+      "binding": "head-verifier",
+      "lane": "snapshot-lane",
+      "label": "Reconcile current heads",
+      "detail": [
+        "canonical event bytes + row",
+        "head pointer and flags agree"
+      ],
+      "x": 465,
+      "y": 830,
+      "width": 560,
+      "height": 110,
+      "variant": "strong"
+    },
+    {
+      "id": "live-corpus",
+      "binding": "utf8-content-accounting",
+      "lane": "ranking-lane",
+      "label": "Live-head accounting",
+      "detail": [
+        "skip verified tombstones",
+        "UTF-8 content <=16 MiB"
+      ],
+      "x": 1160,
+      "y": 830,
+      "width": 380,
+      "height": 110,
+      "variant": "primary"
+    },
+    {
+      "id": "score-all",
+      "binding": "live-head-scoring",
+      "lane": "ranking-lane",
+      "label": "Score every live head",
+      "detail": [
+        "deterministic integer score",
+        "retain every lexical match"
+      ],
+      "x": 1160,
+      "y": 990,
+      "width": 380,
+      "height": 110,
+      "variant": "primary"
+    },
+    {
+      "id": "ranked-result",
+      "binding": "top-k-slice",
+      "lane": "result-lane",
+      "label": "Ranked result",
+      "detail": [
+        "full-set sort",
+        "top-K + citations"
+      ],
+      "x": 1680,
+      "y": 990,
+      "width": 240,
+      "height": 110,
+      "variant": "output"
+    }
+  ],
+  "edges": [
+    {
+      "id": "query-to-compile",
+      "binding": "query-reader",
+      "from": "bounded-query",
+      "to": "compile-query",
+      "label": "strict UTF-8",
+      "label_x": 200,
+      "label_y": 344,
+      "style": "solid",
+      "points": [
+        [200, 320],
+        [200, 365]
+      ]
+    },
+    {
+      "id": "compile-to-snapshot",
+      "binding": "query-compiler",
+      "from": "compile-query",
+      "to": "snapshot",
+      "label": "compiled",
+      "label_x": 395,
+      "label_y": 400,
+      "style": "solid",
+      "points": [
+        [325, 420],
+        [465, 420]
+      ]
+    },
+    {
+      "id": "snapshot-to-inventory",
+      "binding": "public-search",
+      "from": "snapshot",
+      "to": "inventory",
+      "label": "same snapshot",
+      "label_x": 745,
+      "label_y": 499,
+      "style": "solid",
+      "points": [
+        [745, 475],
+        [745, 520]
+      ]
+    },
+    {
+      "id": "inventory-to-orphan-proof",
+      "binding": "head-inventory",
+      "from": "inventory",
+      "to": "orphan-proof",
+      "label": "complete IDs",
+      "label_x": 745,
+      "label_y": 654,
+      "style": "solid",
+      "points": [
+        [745, 630],
+        [745, 675]
+      ]
+    },
+    {
+      "id": "orphan-proof-to-heads",
+      "binding": "orphan-proof",
+      "from": "orphan-proof",
+      "to": "verify-heads",
+      "label": "no event orphans",
+      "label_x": 745,
+      "label_y": 809,
+      "style": "solid",
+      "points": [
+        [745, 785],
+        [745, 830]
+      ]
+    },
+    {
+      "id": "verified-heads-to-live",
+      "binding": "tombstone-exclusion",
+      "from": "verify-heads",
+      "to": "live-corpus",
+      "label": "live heads",
+      "label_x": 1092,
+      "label_y": 865,
+      "style": "solid",
+      "points": [
+        [1025, 885],
+        [1160, 885]
+      ]
+    },
+    {
+      "id": "live-to-score",
+      "binding": "live-content-bound",
+      "from": "live-corpus",
+      "to": "score-all",
+      "label": "within 16 MiB",
+      "label_x": 1350,
+      "label_y": 969,
+      "style": "solid",
+      "points": [
+        [1350, 940],
+        [1350, 990]
+      ]
+    },
+    {
+      "id": "score-to-result",
+      "binding": "full-match-sort",
+      "from": "score-all",
+      "to": "ranked-result",
+      "label": "full-set sort",
+      "label_x": 1610,
+      "label_y": 1025,
+      "style": "solid",
+      "points": [
+        [1540, 1045],
+        [1680, 1045]
+      ]
+    }
+  ],
+  "notes": [
+    {
+      "id": "fail-closed-note",
+      "binding": "fail-closed-contract",
+      "label": "Fail closed",
+      "text": [
+        "Bounds or integrity",
+        "failure aborts the scan.",
+        "No partial prefix."
+      ],
+      "x": 75,
+      "y": 570,
+      "width": 250,
+      "variant": "warning"
+    },
+    {
+      "id": "scope-boundary-note",
+      "binding": "scope-contract",
+      "label": "Scope boundary",
+      "text": [
+        "No authorization.",
+        "Citation, not signature.",
+        "No persistent index.",
+        "No latency claim."
+      ],
+      "x": 75,
+      "y": 755,
+      "width": 250,
+      "variant": "neutral"
+    }
+  ]
+}

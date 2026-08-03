@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast
 import io
 import json
+import os
 import re
 import subprocess
 import sys
@@ -30,16 +31,22 @@ from recall_ledger.cli import (
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from tools import render_cli_evidence, render_visuals  # noqa: E402 - local tools
+from tools import (  # noqa: E402 - repository-local review tools
+    render_cli_evidence,
+    render_lexical_eval_visuals,
+    render_visuals,
+)
 
 SOURCE_DIRECTORY = ROOT / "docs" / "visuals" / "sources"
 OUTPUT_DIRECTORY = ROOT / "docs" / "visuals"
 EXPECTED_SOURCES = {
     "architecture-workflow.v1.json",
+    "reference-search-workflow.v1.json",
     "transaction-output-retry.v1.json",
 }
 EXPECTED_OUTPUTS = {
     "architecture-workflow",
+    "reference-search-workflow",
     "transaction-output-retry",
 }
 EXPECTED_VISUAL_TREE = {
@@ -51,7 +58,12 @@ EXPECTED_VISUAL_TREE = {
     Path("fixtures/cli-content-v2.json"),
     Path("installed-wheel-history-tombstone.svg"),
     Path("installed-wheel-write-replay.svg"),
+    Path("lexical-search-eval-summary.svg"),
+    Path("lexical-search-query-matrix.svg"),
+    Path("lexical-search-ranking-breakdown.svg"),
+    Path("reference-search-workflow.svg"),
     Path("sources/architecture-workflow.v1.json"),
+    Path("sources/reference-search-workflow.v1.json"),
     Path("sources/transaction-output-retry.v1.json"),
     Path("transaction-output-retry.svg"),
 }
@@ -361,7 +373,10 @@ def resolve_binding(binding: render_visuals.Binding) -> None:
 
 
 def test_visual_sources_use_closed_versioned_bounded_schema(tmp_path: Path) -> None:
-    assert frozenset(render_cli_evidence.OUTPUT_NAMES) == render_visuals.COLOCATED_SVG_NAMES
+    colocated = frozenset(render_cli_evidence.OUTPUT_NAMES) | frozenset(
+        render_lexical_eval_visuals.OUTPUT_NAMES
+    )
+    assert colocated == render_visuals.COLOCATED_SVG_NAMES
     visual_tree = {
         path.relative_to(OUTPUT_DIRECTORY) for path in OUTPUT_DIRECTORY.rglob("*") if path.is_file()
     }
@@ -962,12 +977,15 @@ def test_sdist_carries_self_contained_visual_renderer(tmp_path: Path) -> None:
         required_review_files = {
             "tests/test_cli_evidence.py",
             "tests/test_cli_evidence_hardening.py",
+            "tests/test_lexical_eval_visuals.py",
             "tests/test_visual_evidence.py",
             "tests/test_visual_renderer_hardening.py",
             "tools/__init__.py",
             "tools/capture_cli_evidence.py",
             "tools/cli_evidence_contract.py",
+            "tools/lexical_eval_contract.py",
             "tools/render_cli_evidence.py",
+            "tools/render_lexical_eval_visuals.py",
             "tools/render_visuals.py",
         }
         assert required_review_files <= file_members.keys()
@@ -976,11 +994,17 @@ def test_sdist_carries_self_contained_visual_renderer(tmp_path: Path) -> None:
         archive.extractall(extraction_directory, filter="data")
 
     extracted_root = extraction_directory / root_name
+    subprocess_environment = {
+        key: value
+        for key, value in os.environ.items()
+        if not key.startswith("COV_CORE_") and key != "COVERAGE_PROCESS_START"
+    }
     render_check = subprocess.run(  # noqa: S603 - fixed interpreter and repository tool
         [sys.executable, "tools/render_visuals.py", "--check"],
         cwd=extracted_root,
         check=False,
         capture_output=True,
+        env=subprocess_environment,
         text=True,
     )
     assert render_check.returncode == 0, render_check.stderr
@@ -990,9 +1014,20 @@ def test_sdist_carries_self_contained_visual_renderer(tmp_path: Path) -> None:
         cwd=extracted_root,
         check=False,
         capture_output=True,
+        env=subprocess_environment,
         text=True,
     )
     assert terminal_check.returncode == 0, terminal_check.stderr
+
+    lexical_check = subprocess.run(  # noqa: S603 - extracted repository-owned renderer
+        [sys.executable, "tools/render_lexical_eval_visuals.py", "--check"],
+        cwd=extracted_root,
+        check=False,
+        capture_output=True,
+        env=subprocess_environment,
+        text=True,
+    )
+    assert lexical_check.returncode == 0, lexical_check.stderr
 
     import_check = subprocess.run(  # noqa: S603 - fixed interpreter and constant probe
         [
@@ -1000,16 +1035,18 @@ def test_sdist_carries_self_contained_visual_renderer(tmp_path: Path) -> None:
             "-c",
             (
                 "from tools import capture_cli_evidence,cli_evidence_contract,"
-                "render_cli_evidence,render_visuals;"
+                "render_cli_evidence,render_lexical_eval_visuals,render_visuals;"
                 "assert capture_cli_evidence.EXPECTED_WHEEL_NAME.endswith('.whl');"
                 "assert len(cli_evidence_contract.FIXTURE_FILES)==3;"
                 "assert len(render_cli_evidence.OUTPUT_NAMES)==2;"
-                "assert len(render_visuals.render_sources())==2"
+                "assert len(render_lexical_eval_visuals.OUTPUT_NAMES)==3;"
+                "assert len(render_visuals.render_sources())==3"
             ),
         ],
         cwd=extracted_root,
         check=False,
         capture_output=True,
+        env=subprocess_environment,
         text=True,
     )
     assert import_check.returncode == 0, import_check.stderr

@@ -1,0 +1,442 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1320" viewBox="0 0 2400 1320" role="img" aria-labelledby="lexical-search-query-matrix-title lexical-search-query-matrix-description" data-suite-id="recall-ledger-lexical-v1" data-corpus-sha256="a41bbb16bf618f0dbfaf9f62f7c85696db6d0e7ff6113491c4bcfe71cb7658e7" data-queries-sha256="d0fbf57ea8396eaa97a9093a9ca24a473564f3f3c3d8aa87dce70f6002aba7dd" data-expected-sha256="ae5a3c4815ef9988e72de76e51408790dd9ac980bacc3a8ce00db58102a288c9" data-unicode-profile-policy="runtime-bound">
+  <title id="lexical-search-query-matrix-title">Frozen lexical query by document matrix</title>
+  <desc id="lexical-search-query-matrix-description">All ninety-six judged query-document cells. Fill encodes rank only within a query, labels show raw score, and gold marks graded relevance. The table exposes every query, document, grade, rank, and score through ARIA cell labels and data attributes.</desc>
+  <style>
+    .title { fill: #182536; font: 700 34px system-ui, sans-serif; }
+    .subtitle { fill: #405166; font: 500 17px system-ui, sans-serif; }
+    .body { fill: #182536; font: 500 15px system-ui, sans-serif; }
+    .small { fill: #526276; font: 500 13px system-ui, sans-serif; }
+    .mono { fill: #526276; font: 500 12px ui-monospace, monospace; }
+  </style>
+  <rect width="2400" height="1320" fill="#f7f9fc"/>
+  <text class="title" x="60" y="55">Lexical search · query x document</text>
+  <text class="subtitle" x="60" y="88">12 queries x 8 documents · fill is within-query rank only · raw scores are not comparable across queries</text>
+  <text class="small" x="60" y="119">Gold outline/badge = human relevance grade; orange = the one known semantic miss.</text>
+  <text x="640" y="151" text-anchor="middle" fill="#182536" font-family="ui-monospace, monospace" font-size="13" font-weight="700">lexical</text>
+  <text x="640" y="170" text-anchor="middle" fill="#405166" font-family="ui-monospace, monospace" font-size="12">ranking</text>
+  <text x="860" y="151" text-anchor="middle" fill="#182536" font-family="ui-monospace, monospace" font-size="13" font-weight="700">literal</text>
+  <text x="860" y="170" text-anchor="middle" fill="#405166" font-family="ui-monospace, monospace" font-size="12">operators</text>
+  <text x="1080" y="151" text-anchor="middle" fill="#182536" font-family="ui-monospace, monospace" font-size="13" font-weight="700">prompt</text>
+  <text x="1080" y="170" text-anchor="middle" fill="#405166" font-family="ui-monospace, monospace" font-size="12">boundary</text>
+  <text x="1300" y="151" text-anchor="middle" fill="#182536" font-family="ui-monospace, monospace" font-size="13" font-weight="700">retrieval</text>
+  <text x="1300" y="170" text-anchor="middle" fill="#405166" font-family="ui-monospace, monospace" font-size="12">safety</text>
+  <text x="1520" y="151" text-anchor="middle" fill="#182536" font-family="ui-monospace, monospace" font-size="13" font-weight="700">sqlite</text>
+  <text x="1520" y="170" text-anchor="middle" fill="#405166" font-family="ui-monospace, monospace" font-size="12">snapshot</text>
+  <text x="1740" y="151" text-anchor="middle" fill="#182536" font-family="ui-monospace, monospace" font-size="13" font-weight="700">tombstone</text>
+  <text x="1740" y="170" text-anchor="middle" fill="#405166" font-family="ui-monospace, monospace" font-size="12">boundary</text>
+  <text x="1960" y="151" text-anchor="middle" fill="#182536" font-family="ui-monospace, monospace" font-size="13" font-weight="700">unicode</text>
+  <text x="1960" y="170" text-anchor="middle" fill="#405166" font-family="ui-monospace, monospace" font-size="12">profile</text>
+  <text x="2180" y="151" text-anchor="middle" fill="#182536" font-family="ui-monospace, monospace" font-size="13" font-weight="700">wheel</text>
+  <text x="2180" y="170" text-anchor="middle" fill="#405166" font-family="ui-monospace, monospace" font-size="12">evidence</text>
+  <g class="matrix-table" role="table" aria-label="Frozen lexical query by document result table" aria-rowcount="12" aria-colcount="8">
+  <g class="matrix-row" role="row" aria-rowindex="1" data-query-id="q01-retrieval" aria-label="q01-retrieval, query retrieval">
+  <text x="60" y="218" fill="#182536" font-family="ui-monospace, monospace" font-size="14" font-weight="700">q01-retrieval</text>
+  <text x="260" y="218" fill="#405166" font-family="system-ui, sans-serif" font-size="14">retrieval</text>
+  <g class="matrix-cell" role="cell" aria-colindex="1" aria-label="q01-retrieval, query retrieval; document lexical-ranking, Deterministic retrieval ranking; relevance grade 3; rank 2, score 12" data-query-id="q01-retrieval" data-document-id="lexical-ranking" data-grade="3" data-rank="2" data-score="12">
+    <rect x="533" y="193" width="214" height="62" rx="9" fill="#eaf2ff" stroke="#7a5200" stroke-width="3"/>
+    <text x="640" y="230" text-anchor="middle" fill="#182536" font-family="ui-monospace, monospace" font-size="14" font-weight="700">r2 · s12</text>
+    <rect x="702" y="200" width="36" height="22" rx="7" fill="#7a5200"/>
+    <text x="720" y="216" text-anchor="middle" fill="#ffffff" font-family="ui-monospace, monospace" font-size="12" font-weight="750">g3</text>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="2" aria-label="q01-retrieval, query retrieval; document literal-operators, Operator words are data; relevance grade 0; not retrieved" data-query-id="q01-retrieval" data-document-id="literal-operators" data-grade="0" data-rank="0" data-score="0">
+    <rect x="753" y="193" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="3" aria-label="q01-retrieval, query retrieval; document prompt-boundary, Prompt assembly boundary; relevance grade 0; not retrieved" data-query-id="q01-retrieval" data-document-id="prompt-boundary" data-grade="0" data-rank="0" data-score="0">
+    <rect x="973" y="193" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="4" aria-label="q01-retrieval, query retrieval; document retrieval-safety, Retrieval safety; relevance grade 3; rank 1, score 20" data-query-id="q01-retrieval" data-document-id="retrieval-safety" data-grade="3" data-rank="1" data-score="20">
+    <rect x="1193" y="193" width="214" height="62" rx="9" fill="#dbe9ff" stroke="#7a5200" stroke-width="3"/>
+    <text x="1300" y="230" text-anchor="middle" fill="#182536" font-family="ui-monospace, monospace" font-size="14" font-weight="700">r1 · s20</text>
+    <rect x="1362" y="200" width="36" height="22" rx="7" fill="#7a5200"/>
+    <text x="1380" y="216" text-anchor="middle" fill="#ffffff" font-family="ui-monospace, monospace" font-size="12" font-weight="750">g3</text>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="5" aria-label="q01-retrieval, query retrieval; document sqlite-snapshot, SQLite snapshot isolation; relevance grade 0; not retrieved" data-query-id="q01-retrieval" data-document-id="sqlite-snapshot" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1413" y="193" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="6" aria-label="q01-retrieval, query retrieval; document tombstone-boundary, Tombstone retention boundary; relevance grade 1; rank 4, score 3" data-query-id="q01-retrieval" data-document-id="tombstone-boundary" data-grade="1" data-rank="4" data-score="3">
+    <rect x="1633" y="193" width="214" height="62" rx="9" fill="#fbfcfe" stroke="#7a5200" stroke-width="3"/>
+    <text x="1740" y="230" text-anchor="middle" fill="#182536" font-family="ui-monospace, monospace" font-size="14" font-weight="700">r4 · s3</text>
+    <rect x="1802" y="200" width="36" height="22" rx="7" fill="#7a5200"/>
+    <text x="1820" y="216" text-anchor="middle" fill="#ffffff" font-family="ui-monospace, monospace" font-size="12" font-weight="750">g1</text>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="7" aria-label="q01-retrieval, query retrieval; document unicode-profile, Unicode normalization profile; relevance grade 2; rank 3, score 8" data-query-id="q01-retrieval" data-document-id="unicode-profile" data-grade="2" data-rank="3" data-score="8">
+    <rect x="1853" y="193" width="214" height="62" rx="9" fill="#f3f8ff" stroke="#7a5200" stroke-width="3"/>
+    <text x="1960" y="230" text-anchor="middle" fill="#182536" font-family="ui-monospace, monospace" font-size="14" font-weight="700">r3 · s8</text>
+    <rect x="2022" y="200" width="36" height="22" rx="7" fill="#7a5200"/>
+    <text x="2040" y="216" text-anchor="middle" fill="#ffffff" font-family="ui-monospace, monospace" font-size="12" font-weight="750">g2</text>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="8" aria-label="q01-retrieval, query retrieval; document wheel-evidence, Offline wheel verification; relevance grade 0; not retrieved" data-query-id="q01-retrieval" data-document-id="wheel-evidence" data-grade="0" data-rank="0" data-score="0">
+    <rect x="2073" y="193" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  </g>
+  <g class="matrix-row" role="row" aria-rowindex="2" data-query-id="q02-safety" aria-label="q02-safety, query safety">
+  <text x="60" y="286" fill="#182536" font-family="ui-monospace, monospace" font-size="14" font-weight="700">q02-safety</text>
+  <text x="260" y="286" fill="#405166" font-family="system-ui, sans-serif" font-size="14">safety</text>
+  <g class="matrix-cell" role="cell" aria-colindex="1" aria-label="q02-safety, query safety; document lexical-ranking, Deterministic retrieval ranking; relevance grade 0; not retrieved" data-query-id="q02-safety" data-document-id="lexical-ranking" data-grade="0" data-rank="0" data-score="0">
+    <rect x="533" y="261" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="2" aria-label="q02-safety, query safety; document literal-operators, Operator words are data; relevance grade 2; rank 2, score 8" data-query-id="q02-safety" data-document-id="literal-operators" data-grade="2" data-rank="2" data-score="8">
+    <rect x="753" y="261" width="214" height="62" rx="9" fill="#eaf2ff" stroke="#7a5200" stroke-width="3"/>
+    <text x="860" y="298" text-anchor="middle" fill="#182536" font-family="ui-monospace, monospace" font-size="14" font-weight="700">r2 · s8</text>
+    <rect x="922" y="268" width="36" height="22" rx="7" fill="#7a5200"/>
+    <text x="940" y="284" text-anchor="middle" fill="#ffffff" font-family="ui-monospace, monospace" font-size="12" font-weight="750">g2</text>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="3" aria-label="q02-safety, query safety; document prompt-boundary, Prompt assembly boundary; relevance grade 0; not retrieved" data-query-id="q02-safety" data-document-id="prompt-boundary" data-grade="0" data-rank="0" data-score="0">
+    <rect x="973" y="261" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="4" aria-label="q02-safety, query safety; document retrieval-safety, Retrieval safety; relevance grade 3; rank 1, score 12" data-query-id="q02-safety" data-document-id="retrieval-safety" data-grade="3" data-rank="1" data-score="12">
+    <rect x="1193" y="261" width="214" height="62" rx="9" fill="#dbe9ff" stroke="#7a5200" stroke-width="3"/>
+    <text x="1300" y="298" text-anchor="middle" fill="#182536" font-family="ui-monospace, monospace" font-size="14" font-weight="700">r1 · s12</text>
+    <rect x="1362" y="268" width="36" height="22" rx="7" fill="#7a5200"/>
+    <text x="1380" y="284" text-anchor="middle" fill="#ffffff" font-family="ui-monospace, monospace" font-size="12" font-weight="750">g3</text>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="5" aria-label="q02-safety, query safety; document sqlite-snapshot, SQLite snapshot isolation; relevance grade 0; not retrieved" data-query-id="q02-safety" data-document-id="sqlite-snapshot" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1413" y="261" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="6" aria-label="q02-safety, query safety; document tombstone-boundary, Tombstone retention boundary; relevance grade 0; not retrieved" data-query-id="q02-safety" data-document-id="tombstone-boundary" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1633" y="261" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="7" aria-label="q02-safety, query safety; document unicode-profile, Unicode normalization profile; relevance grade 0; not retrieved" data-query-id="q02-safety" data-document-id="unicode-profile" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1853" y="261" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="8" aria-label="q02-safety, query safety; document wheel-evidence, Offline wheel verification; relevance grade 0; not retrieved" data-query-id="q02-safety" data-document-id="wheel-evidence" data-grade="0" data-rank="0" data-score="0">
+    <rect x="2073" y="261" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  </g>
+  <g class="matrix-row" role="row" aria-rowindex="3" data-query-id="q03-boundary" aria-label="q03-boundary, query boundary">
+  <text x="60" y="354" fill="#182536" font-family="ui-monospace, monospace" font-size="14" font-weight="700">q03-boundary</text>
+  <text x="260" y="354" fill="#405166" font-family="system-ui, sans-serif" font-size="14">boundary</text>
+  <g class="matrix-cell" role="cell" aria-colindex="1" aria-label="q03-boundary, query boundary; document lexical-ranking, Deterministic retrieval ranking; relevance grade 0; not retrieved" data-query-id="q03-boundary" data-document-id="lexical-ranking" data-grade="0" data-rank="0" data-score="0">
+    <rect x="533" y="329" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="2" aria-label="q03-boundary, query boundary; document literal-operators, Operator words are data; relevance grade 0; not retrieved" data-query-id="q03-boundary" data-document-id="literal-operators" data-grade="0" data-rank="0" data-score="0">
+    <rect x="753" y="329" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="3" aria-label="q03-boundary, query boundary; document prompt-boundary, Prompt assembly boundary; relevance grade 3; rank 1, score 20" data-query-id="q03-boundary" data-document-id="prompt-boundary" data-grade="3" data-rank="1" data-score="20">
+    <rect x="973" y="329" width="214" height="62" rx="9" fill="#dbe9ff" stroke="#7a5200" stroke-width="3"/>
+    <text x="1080" y="366" text-anchor="middle" fill="#182536" font-family="ui-monospace, monospace" font-size="14" font-weight="700">r1 · s20</text>
+    <rect x="1142" y="336" width="36" height="22" rx="7" fill="#7a5200"/>
+    <text x="1160" y="352" text-anchor="middle" fill="#ffffff" font-family="ui-monospace, monospace" font-size="12" font-weight="750">g3</text>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="4" aria-label="q03-boundary, query boundary; document retrieval-safety, Retrieval safety; relevance grade 0; not retrieved" data-query-id="q03-boundary" data-document-id="retrieval-safety" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1193" y="329" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="5" aria-label="q03-boundary, query boundary; document sqlite-snapshot, SQLite snapshot isolation; relevance grade 0; not retrieved" data-query-id="q03-boundary" data-document-id="sqlite-snapshot" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1413" y="329" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="6" aria-label="q03-boundary, query boundary; document tombstone-boundary, Tombstone retention boundary; relevance grade 2; rank 2, score 12" data-query-id="q03-boundary" data-document-id="tombstone-boundary" data-grade="2" data-rank="2" data-score="12">
+    <rect x="1633" y="329" width="214" height="62" rx="9" fill="#eaf2ff" stroke="#7a5200" stroke-width="3"/>
+    <text x="1740" y="366" text-anchor="middle" fill="#182536" font-family="ui-monospace, monospace" font-size="14" font-weight="700">r2 · s12</text>
+    <rect x="1802" y="336" width="36" height="22" rx="7" fill="#7a5200"/>
+    <text x="1820" y="352" text-anchor="middle" fill="#ffffff" font-family="ui-monospace, monospace" font-size="12" font-weight="750">g2</text>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="7" aria-label="q03-boundary, query boundary; document unicode-profile, Unicode normalization profile; relevance grade 0; not retrieved" data-query-id="q03-boundary" data-document-id="unicode-profile" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1853" y="329" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="8" aria-label="q03-boundary, query boundary; document wheel-evidence, Offline wheel verification; relevance grade 0; not retrieved" data-query-id="q03-boundary" data-document-id="wheel-evidence" data-grade="0" data-rank="0" data-score="0">
+    <rect x="2073" y="329" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  </g>
+  <g class="matrix-row" role="row" aria-rowindex="4" data-query-id="q04-unicode-nfkc" aria-label="q04-unicode-nfkc, query unicode nfkc">
+  <text x="60" y="422" fill="#182536" font-family="ui-monospace, monospace" font-size="14" font-weight="700">q04-unicode-nfkc</text>
+  <text x="260" y="422" fill="#405166" font-family="system-ui, sans-serif" font-size="14">unicode nfkc</text>
+  <g class="matrix-cell" role="cell" aria-colindex="1" aria-label="q04-unicode-nfkc, query unicode nfkc; document lexical-ranking, Deterministic retrieval ranking; relevance grade 0; not retrieved" data-query-id="q04-unicode-nfkc" data-document-id="lexical-ranking" data-grade="0" data-rank="0" data-score="0">
+    <rect x="533" y="397" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="2" aria-label="q04-unicode-nfkc, query unicode nfkc; document literal-operators, Operator words are data; relevance grade 0; not retrieved" data-query-id="q04-unicode-nfkc" data-document-id="literal-operators" data-grade="0" data-rank="0" data-score="0">
+    <rect x="753" y="397" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="3" aria-label="q04-unicode-nfkc, query unicode nfkc; document prompt-boundary, Prompt assembly boundary; relevance grade 0; not retrieved" data-query-id="q04-unicode-nfkc" data-document-id="prompt-boundary" data-grade="0" data-rank="0" data-score="0">
+    <rect x="973" y="397" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="4" aria-label="q04-unicode-nfkc, query unicode nfkc; document retrieval-safety, Retrieval safety; relevance grade 0; not retrieved" data-query-id="q04-unicode-nfkc" data-document-id="retrieval-safety" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1193" y="397" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="5" aria-label="q04-unicode-nfkc, query unicode nfkc; document sqlite-snapshot, SQLite snapshot isolation; relevance grade 0; not retrieved" data-query-id="q04-unicode-nfkc" data-document-id="sqlite-snapshot" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1413" y="397" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="6" aria-label="q04-unicode-nfkc, query unicode nfkc; document tombstone-boundary, Tombstone retention boundary; relevance grade 0; not retrieved" data-query-id="q04-unicode-nfkc" data-document-id="tombstone-boundary" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1633" y="397" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="7" aria-label="q04-unicode-nfkc, query unicode nfkc; document unicode-profile, Unicode normalization profile; relevance grade 3; rank 1, score 26" data-query-id="q04-unicode-nfkc" data-document-id="unicode-profile" data-grade="3" data-rank="1" data-score="26">
+    <rect x="1853" y="397" width="214" height="62" rx="9" fill="#dbe9ff" stroke="#7a5200" stroke-width="3"/>
+    <text x="1960" y="434" text-anchor="middle" fill="#182536" font-family="ui-monospace, monospace" font-size="14" font-weight="700">r1 · s26</text>
+    <rect x="2022" y="404" width="36" height="22" rx="7" fill="#7a5200"/>
+    <text x="2040" y="420" text-anchor="middle" fill="#ffffff" font-family="ui-monospace, monospace" font-size="12" font-weight="750">g3</text>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="8" aria-label="q04-unicode-nfkc, query unicode nfkc; document wheel-evidence, Offline wheel verification; relevance grade 0; not retrieved" data-query-id="q04-unicode-nfkc" data-document-id="wheel-evidence" data-grade="0" data-rank="0" data-score="0">
+    <rect x="2073" y="397" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  </g>
+  <g class="matrix-row" role="row" aria-rowindex="5" data-query-id="q05-width-casefold" aria-label="q05-width-casefold, query ＣＡＦÉ STRASSE">
+  <text x="60" y="490" fill="#182536" font-family="ui-monospace, monospace" font-size="14" font-weight="700">q05-width-casefold</text>
+  <text x="260" y="490" fill="#405166" font-family="system-ui, sans-serif" font-size="14">ＣＡＦÉ STRASSE</text>
+  <g class="matrix-cell" role="cell" aria-colindex="1" aria-label="q05-width-casefold, query ＣＡＦÉ STRASSE; document lexical-ranking, Deterministic retrieval ranking; relevance grade 0; not retrieved" data-query-id="q05-width-casefold" data-document-id="lexical-ranking" data-grade="0" data-rank="0" data-score="0">
+    <rect x="533" y="465" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="2" aria-label="q05-width-casefold, query ＣＡＦÉ STRASSE; document literal-operators, Operator words are data; relevance grade 0; not retrieved" data-query-id="q05-width-casefold" data-document-id="literal-operators" data-grade="0" data-rank="0" data-score="0">
+    <rect x="753" y="465" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="3" aria-label="q05-width-casefold, query ＣＡＦÉ STRASSE; document prompt-boundary, Prompt assembly boundary; relevance grade 0; not retrieved" data-query-id="q05-width-casefold" data-document-id="prompt-boundary" data-grade="0" data-rank="0" data-score="0">
+    <rect x="973" y="465" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="4" aria-label="q05-width-casefold, query ＣＡＦÉ STRASSE; document retrieval-safety, Retrieval safety; relevance grade 0; not retrieved" data-query-id="q05-width-casefold" data-document-id="retrieval-safety" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1193" y="465" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="5" aria-label="q05-width-casefold, query ＣＡＦÉ STRASSE; document sqlite-snapshot, SQLite snapshot isolation; relevance grade 0; not retrieved" data-query-id="q05-width-casefold" data-document-id="sqlite-snapshot" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1413" y="465" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="6" aria-label="q05-width-casefold, query ＣＡＦÉ STRASSE; document tombstone-boundary, Tombstone retention boundary; relevance grade 0; not retrieved" data-query-id="q05-width-casefold" data-document-id="tombstone-boundary" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1633" y="465" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="7" aria-label="q05-width-casefold, query ＣＡＦÉ STRASSE; document unicode-profile, Unicode normalization profile; relevance grade 3; rank 1, score 6" data-query-id="q05-width-casefold" data-document-id="unicode-profile" data-grade="3" data-rank="1" data-score="6">
+    <rect x="1853" y="465" width="214" height="62" rx="9" fill="#dbe9ff" stroke="#7a5200" stroke-width="3"/>
+    <text x="1960" y="502" text-anchor="middle" fill="#182536" font-family="ui-monospace, monospace" font-size="14" font-weight="700">r1 · s6</text>
+    <rect x="2022" y="472" width="36" height="22" rx="7" fill="#7a5200"/>
+    <text x="2040" y="488" text-anchor="middle" fill="#ffffff" font-family="ui-monospace, monospace" font-size="12" font-weight="750">g3</text>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="8" aria-label="q05-width-casefold, query ＣＡＦÉ STRASSE; document wheel-evidence, Offline wheel verification; relevance grade 0; not retrieved" data-query-id="q05-width-casefold" data-document-id="wheel-evidence" data-grade="0" data-rank="0" data-score="0">
+    <rect x="2073" y="465" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  </g>
+  <g class="matrix-row" role="row" aria-rowindex="6" data-query-id="q06-prompt-injection" aria-label="q06-prompt-injection, query prompt_injection">
+  <text x="60" y="558" fill="#182536" font-family="ui-monospace, monospace" font-size="14" font-weight="700">q06-prompt-injection</text>
+  <text x="260" y="558" fill="#405166" font-family="system-ui, sans-serif" font-size="14">prompt_injection</text>
+  <g class="matrix-cell" role="cell" aria-colindex="1" aria-label="q06-prompt-injection, query prompt_injection; document lexical-ranking, Deterministic retrieval ranking; relevance grade 0; not retrieved" data-query-id="q06-prompt-injection" data-document-id="lexical-ranking" data-grade="0" data-rank="0" data-score="0">
+    <rect x="533" y="533" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="2" aria-label="q06-prompt-injection, query prompt_injection; document literal-operators, Operator words are data; relevance grade 0; not retrieved" data-query-id="q06-prompt-injection" data-document-id="literal-operators" data-grade="0" data-rank="0" data-score="0">
+    <rect x="753" y="533" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="3" aria-label="q06-prompt-injection, query prompt_injection; document prompt-boundary, Prompt assembly boundary; relevance grade 3; rank 1, score 44" data-query-id="q06-prompt-injection" data-document-id="prompt-boundary" data-grade="3" data-rank="1" data-score="44">
+    <rect x="973" y="533" width="214" height="62" rx="9" fill="#dbe9ff" stroke="#7a5200" stroke-width="3"/>
+    <text x="1080" y="570" text-anchor="middle" fill="#182536" font-family="ui-monospace, monospace" font-size="14" font-weight="700">r1 · s44</text>
+    <rect x="1142" y="540" width="36" height="22" rx="7" fill="#7a5200"/>
+    <text x="1160" y="556" text-anchor="middle" fill="#ffffff" font-family="ui-monospace, monospace" font-size="12" font-weight="750">g3</text>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="4" aria-label="q06-prompt-injection, query prompt_injection; document retrieval-safety, Retrieval safety; relevance grade 0; not retrieved" data-query-id="q06-prompt-injection" data-document-id="retrieval-safety" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1193" y="533" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="5" aria-label="q06-prompt-injection, query prompt_injection; document sqlite-snapshot, SQLite snapshot isolation; relevance grade 0; not retrieved" data-query-id="q06-prompt-injection" data-document-id="sqlite-snapshot" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1413" y="533" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="6" aria-label="q06-prompt-injection, query prompt_injection; document tombstone-boundary, Tombstone retention boundary; relevance grade 0; not retrieved" data-query-id="q06-prompt-injection" data-document-id="tombstone-boundary" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1633" y="533" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="7" aria-label="q06-prompt-injection, query prompt_injection; document unicode-profile, Unicode normalization profile; relevance grade 0; not retrieved" data-query-id="q06-prompt-injection" data-document-id="unicode-profile" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1853" y="533" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="8" aria-label="q06-prompt-injection, query prompt_injection; document wheel-evidence, Offline wheel verification; relevance grade 0; not retrieved" data-query-id="q06-prompt-injection" data-document-id="wheel-evidence" data-grade="0" data-rank="0" data-score="0">
+    <rect x="2073" y="533" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  </g>
+  <g class="matrix-row" role="row" aria-rowindex="7" data-query-id="q07-logical-deletion" aria-label="q07-logical-deletion, query logical deletion">
+  <text x="60" y="626" fill="#182536" font-family="ui-monospace, monospace" font-size="14" font-weight="700">q07-logical-deletion</text>
+  <text x="260" y="626" fill="#405166" font-family="system-ui, sans-serif" font-size="14">logical deletion</text>
+  <g class="matrix-cell" role="cell" aria-colindex="1" aria-label="q07-logical-deletion, query logical deletion; document lexical-ranking, Deterministic retrieval ranking; relevance grade 0; not retrieved" data-query-id="q07-logical-deletion" data-document-id="lexical-ranking" data-grade="0" data-rank="0" data-score="0">
+    <rect x="533" y="601" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="2" aria-label="q07-logical-deletion, query logical deletion; document literal-operators, Operator words are data; relevance grade 0; not retrieved" data-query-id="q07-logical-deletion" data-document-id="literal-operators" data-grade="0" data-rank="0" data-score="0">
+    <rect x="753" y="601" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="3" aria-label="q07-logical-deletion, query logical deletion; document prompt-boundary, Prompt assembly boundary; relevance grade 0; not retrieved" data-query-id="q07-logical-deletion" data-document-id="prompt-boundary" data-grade="0" data-rank="0" data-score="0">
+    <rect x="973" y="601" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="4" aria-label="q07-logical-deletion, query logical deletion; document retrieval-safety, Retrieval safety; relevance grade 0; not retrieved" data-query-id="q07-logical-deletion" data-document-id="retrieval-safety" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1193" y="601" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="5" aria-label="q07-logical-deletion, query logical deletion; document sqlite-snapshot, SQLite snapshot isolation; relevance grade 0; not retrieved" data-query-id="q07-logical-deletion" data-document-id="sqlite-snapshot" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1413" y="601" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="6" aria-label="q07-logical-deletion, query logical deletion; document tombstone-boundary, Tombstone retention boundary; relevance grade 3; rank 1, score 22" data-query-id="q07-logical-deletion" data-document-id="tombstone-boundary" data-grade="3" data-rank="1" data-score="22">
+    <rect x="1633" y="601" width="214" height="62" rx="9" fill="#dbe9ff" stroke="#7a5200" stroke-width="3"/>
+    <text x="1740" y="638" text-anchor="middle" fill="#182536" font-family="ui-monospace, monospace" font-size="14" font-weight="700">r1 · s22</text>
+    <rect x="1802" y="608" width="36" height="22" rx="7" fill="#7a5200"/>
+    <text x="1820" y="624" text-anchor="middle" fill="#ffffff" font-family="ui-monospace, monospace" font-size="12" font-weight="750">g3</text>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="7" aria-label="q07-logical-deletion, query logical deletion; document unicode-profile, Unicode normalization profile; relevance grade 0; not retrieved" data-query-id="q07-logical-deletion" data-document-id="unicode-profile" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1853" y="601" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="8" aria-label="q07-logical-deletion, query logical deletion; document wheel-evidence, Offline wheel verification; relevance grade 0; not retrieved" data-query-id="q07-logical-deletion" data-document-id="wheel-evidence" data-grade="0" data-rank="0" data-score="0">
+    <rect x="2073" y="601" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  </g>
+  <g class="matrix-row" role="row" aria-rowindex="8" data-query-id="q08-integer-ranking" aria-label="q08-integer-ranking, query integer ranking">
+  <text x="60" y="694" fill="#182536" font-family="ui-monospace, monospace" font-size="14" font-weight="700">q08-integer-ranking</text>
+  <text x="260" y="694" fill="#405166" font-family="system-ui, sans-serif" font-size="14">integer ranking</text>
+  <g class="matrix-cell" role="cell" aria-colindex="1" aria-label="q08-integer-ranking, query integer ranking; document lexical-ranking, Deterministic retrieval ranking; relevance grade 3; rank 1, score 23" data-query-id="q08-integer-ranking" data-document-id="lexical-ranking" data-grade="3" data-rank="1" data-score="23">
+    <rect x="533" y="669" width="214" height="62" rx="9" fill="#dbe9ff" stroke="#7a5200" stroke-width="3"/>
+    <text x="640" y="706" text-anchor="middle" fill="#182536" font-family="ui-monospace, monospace" font-size="14" font-weight="700">r1 · s23</text>
+    <rect x="702" y="676" width="36" height="22" rx="7" fill="#7a5200"/>
+    <text x="720" y="692" text-anchor="middle" fill="#ffffff" font-family="ui-monospace, monospace" font-size="12" font-weight="750">g3</text>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="2" aria-label="q08-integer-ranking, query integer ranking; document literal-operators, Operator words are data; relevance grade 0; not retrieved" data-query-id="q08-integer-ranking" data-document-id="literal-operators" data-grade="0" data-rank="0" data-score="0">
+    <rect x="753" y="669" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="3" aria-label="q08-integer-ranking, query integer ranking; document prompt-boundary, Prompt assembly boundary; relevance grade 0; not retrieved" data-query-id="q08-integer-ranking" data-document-id="prompt-boundary" data-grade="0" data-rank="0" data-score="0">
+    <rect x="973" y="669" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="4" aria-label="q08-integer-ranking, query integer ranking; document retrieval-safety, Retrieval safety; relevance grade 0; not retrieved" data-query-id="q08-integer-ranking" data-document-id="retrieval-safety" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1193" y="669" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="5" aria-label="q08-integer-ranking, query integer ranking; document sqlite-snapshot, SQLite snapshot isolation; relevance grade 0; not retrieved" data-query-id="q08-integer-ranking" data-document-id="sqlite-snapshot" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1413" y="669" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="6" aria-label="q08-integer-ranking, query integer ranking; document tombstone-boundary, Tombstone retention boundary; relevance grade 0; not retrieved" data-query-id="q08-integer-ranking" data-document-id="tombstone-boundary" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1633" y="669" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="7" aria-label="q08-integer-ranking, query integer ranking; document unicode-profile, Unicode normalization profile; relevance grade 0; not retrieved" data-query-id="q08-integer-ranking" data-document-id="unicode-profile" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1853" y="669" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="8" aria-label="q08-integer-ranking, query integer ranking; document wheel-evidence, Offline wheel verification; relevance grade 0; not retrieved" data-query-id="q08-integer-ranking" data-document-id="wheel-evidence" data-grade="0" data-rank="0" data-score="0">
+    <rect x="2073" y="669" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  </g>
+  <g class="matrix-row" role="row" aria-rowindex="9" data-query-id="q09-sqlite-transaction" aria-label="q09-sqlite-transaction, query sqlite transaction">
+  <text x="60" y="762" fill="#182536" font-family="ui-monospace, monospace" font-size="14" font-weight="700">q09-sqlite-transaction</text>
+  <text x="260" y="762" fill="#405166" font-family="system-ui, sans-serif" font-size="14">sqlite transaction</text>
+  <g class="matrix-cell" role="cell" aria-colindex="1" aria-label="q09-sqlite-transaction, query sqlite transaction; document lexical-ranking, Deterministic retrieval ranking; relevance grade 0; not retrieved" data-query-id="q09-sqlite-transaction" data-document-id="lexical-ranking" data-grade="0" data-rank="0" data-score="0">
+    <rect x="533" y="737" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="2" aria-label="q09-sqlite-transaction, query sqlite transaction; document literal-operators, Operator words are data; relevance grade 0; not retrieved" data-query-id="q09-sqlite-transaction" data-document-id="literal-operators" data-grade="0" data-rank="0" data-score="0">
+    <rect x="753" y="737" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="3" aria-label="q09-sqlite-transaction, query sqlite transaction; document prompt-boundary, Prompt assembly boundary; relevance grade 0; not retrieved" data-query-id="q09-sqlite-transaction" data-document-id="prompt-boundary" data-grade="0" data-rank="0" data-score="0">
+    <rect x="973" y="737" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="4" aria-label="q09-sqlite-transaction, query sqlite transaction; document retrieval-safety, Retrieval safety; relevance grade 0; not retrieved" data-query-id="q09-sqlite-transaction" data-document-id="retrieval-safety" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1193" y="737" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="5" aria-label="q09-sqlite-transaction, query sqlite transaction; document sqlite-snapshot, SQLite snapshot isolation; relevance grade 3; rank 1, score 31" data-query-id="q09-sqlite-transaction" data-document-id="sqlite-snapshot" data-grade="3" data-rank="1" data-score="31">
+    <rect x="1413" y="737" width="214" height="62" rx="9" fill="#dbe9ff" stroke="#7a5200" stroke-width="3"/>
+    <text x="1520" y="774" text-anchor="middle" fill="#182536" font-family="ui-monospace, monospace" font-size="14" font-weight="700">r1 · s31</text>
+    <rect x="1582" y="744" width="36" height="22" rx="7" fill="#7a5200"/>
+    <text x="1600" y="760" text-anchor="middle" fill="#ffffff" font-family="ui-monospace, monospace" font-size="12" font-weight="750">g3</text>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="6" aria-label="q09-sqlite-transaction, query sqlite transaction; document tombstone-boundary, Tombstone retention boundary; relevance grade 0; not retrieved" data-query-id="q09-sqlite-transaction" data-document-id="tombstone-boundary" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1633" y="737" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="7" aria-label="q09-sqlite-transaction, query sqlite transaction; document unicode-profile, Unicode normalization profile; relevance grade 0; not retrieved" data-query-id="q09-sqlite-transaction" data-document-id="unicode-profile" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1853" y="737" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="8" aria-label="q09-sqlite-transaction, query sqlite transaction; document wheel-evidence, Offline wheel verification; relevance grade 0; not retrieved" data-query-id="q09-sqlite-transaction" data-document-id="wheel-evidence" data-grade="0" data-rank="0" data-score="0">
+    <rect x="2073" y="737" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  </g>
+  <g class="matrix-row" role="row" aria-rowindex="10" data-query-id="q10-wheel-evidence" aria-label="q10-wheel-evidence, query wheel evidence">
+  <text x="60" y="830" fill="#182536" font-family="ui-monospace, monospace" font-size="14" font-weight="700">q10-wheel-evidence</text>
+  <text x="260" y="830" fill="#405166" font-family="system-ui, sans-serif" font-size="14">wheel evidence</text>
+  <g class="matrix-cell" role="cell" aria-colindex="1" aria-label="q10-wheel-evidence, query wheel evidence; document lexical-ranking, Deterministic retrieval ranking; relevance grade 0; not retrieved" data-query-id="q10-wheel-evidence" data-document-id="lexical-ranking" data-grade="0" data-rank="0" data-score="0">
+    <rect x="533" y="805" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="2" aria-label="q10-wheel-evidence, query wheel evidence; document literal-operators, Operator words are data; relevance grade 0; not retrieved" data-query-id="q10-wheel-evidence" data-document-id="literal-operators" data-grade="0" data-rank="0" data-score="0">
+    <rect x="753" y="805" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="3" aria-label="q10-wheel-evidence, query wheel evidence; document prompt-boundary, Prompt assembly boundary; relevance grade 0; not retrieved" data-query-id="q10-wheel-evidence" data-document-id="prompt-boundary" data-grade="0" data-rank="0" data-score="0">
+    <rect x="973" y="805" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="4" aria-label="q10-wheel-evidence, query wheel evidence; document retrieval-safety, Retrieval safety; relevance grade 0; not retrieved" data-query-id="q10-wheel-evidence" data-document-id="retrieval-safety" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1193" y="805" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="5" aria-label="q10-wheel-evidence, query wheel evidence; document sqlite-snapshot, SQLite snapshot isolation; relevance grade 0; not retrieved" data-query-id="q10-wheel-evidence" data-document-id="sqlite-snapshot" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1413" y="805" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="6" aria-label="q10-wheel-evidence, query wheel evidence; document tombstone-boundary, Tombstone retention boundary; relevance grade 0; not retrieved" data-query-id="q10-wheel-evidence" data-document-id="tombstone-boundary" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1633" y="805" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="7" aria-label="q10-wheel-evidence, query wheel evidence; document unicode-profile, Unicode normalization profile; relevance grade 0; not retrieved" data-query-id="q10-wheel-evidence" data-document-id="unicode-profile" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1853" y="805" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="8" aria-label="q10-wheel-evidence, query wheel evidence; document wheel-evidence, Offline wheel verification; relevance grade 3; rank 1, score 20" data-query-id="q10-wheel-evidence" data-document-id="wheel-evidence" data-grade="3" data-rank="1" data-score="20">
+    <rect x="2073" y="805" width="214" height="62" rx="9" fill="#dbe9ff" stroke="#7a5200" stroke-width="3"/>
+    <text x="2180" y="842" text-anchor="middle" fill="#182536" font-family="ui-monospace, monospace" font-size="14" font-weight="700">r1 · s20</text>
+    <rect x="2242" y="812" width="36" height="22" rx="7" fill="#7a5200"/>
+    <text x="2260" y="828" text-anchor="middle" fill="#ffffff" font-family="ui-monospace, monospace" font-size="12" font-weight="750">g3</text>
+  </g>
+  </g>
+  <g class="matrix-row" role="row" aria-rowindex="11" data-query-id="q11-known-synonym-miss" aria-label="q11-known-synonym-miss, query remove note">
+  <text x="60" y="898" fill="#182536" font-family="ui-monospace, monospace" font-size="14" font-weight="700">q11-known-synonym-miss</text>
+  <text x="260" y="898" fill="#405166" font-family="system-ui, sans-serif" font-size="14">remove note</text>
+  <g class="matrix-cell" role="cell" aria-colindex="1" aria-label="q11-known-synonym-miss, query remove note; document lexical-ranking, Deterministic retrieval ranking; relevance grade 0; not retrieved" data-query-id="q11-known-synonym-miss" data-document-id="lexical-ranking" data-grade="0" data-rank="0" data-score="0">
+    <rect x="533" y="873" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="2" aria-label="q11-known-synonym-miss, query remove note; document literal-operators, Operator words are data; relevance grade 0; not retrieved" data-query-id="q11-known-synonym-miss" data-document-id="literal-operators" data-grade="0" data-rank="0" data-score="0">
+    <rect x="753" y="873" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="3" aria-label="q11-known-synonym-miss, query remove note; document prompt-boundary, Prompt assembly boundary; relevance grade 0; not retrieved" data-query-id="q11-known-synonym-miss" data-document-id="prompt-boundary" data-grade="0" data-rank="0" data-score="0">
+    <rect x="973" y="873" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="4" aria-label="q11-known-synonym-miss, query remove note; document retrieval-safety, Retrieval safety; relevance grade 0; not retrieved" data-query-id="q11-known-synonym-miss" data-document-id="retrieval-safety" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1193" y="873" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="5" aria-label="q11-known-synonym-miss, query remove note; document sqlite-snapshot, SQLite snapshot isolation; relevance grade 0; not retrieved" data-query-id="q11-known-synonym-miss" data-document-id="sqlite-snapshot" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1413" y="873" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="6" aria-label="q11-known-synonym-miss, query remove note; document tombstone-boundary, Tombstone retention boundary; relevance grade 3; not retrieved, known relevant miss" data-query-id="q11-known-synonym-miss" data-document-id="tombstone-boundary" data-grade="3" data-rank="0" data-score="0">
+    <rect x="1633" y="873" width="214" height="62" rx="9" fill="#fff0e4" stroke="#9c4813" stroke-width="3"/>
+    <text x="1740" y="910" text-anchor="middle" fill="#9c4813" font-family="system-ui, sans-serif" font-size="15" font-weight="750">&#215; miss</text>
+    <rect x="1802" y="880" width="36" height="22" rx="7" fill="#7a5200"/>
+    <text x="1820" y="896" text-anchor="middle" fill="#ffffff" font-family="ui-monospace, monospace" font-size="12" font-weight="750">g3</text>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="7" aria-label="q11-known-synonym-miss, query remove note; document unicode-profile, Unicode normalization profile; relevance grade 0; not retrieved" data-query-id="q11-known-synonym-miss" data-document-id="unicode-profile" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1853" y="873" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="8" aria-label="q11-known-synonym-miss, query remove note; document wheel-evidence, Offline wheel verification; relevance grade 0; not retrieved" data-query-id="q11-known-synonym-miss" data-document-id="wheel-evidence" data-grade="0" data-rank="0" data-score="0">
+    <rect x="2073" y="873" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  </g>
+  <g class="matrix-row" role="row" aria-rowindex="12" data-query-id="q12-literal-operators" aria-label="q12-literal-operators, query OR NEAR wildcard*">
+  <text x="60" y="966" fill="#182536" font-family="ui-monospace, monospace" font-size="14" font-weight="700">q12-literal-operators</text>
+  <text x="260" y="966" fill="#405166" font-family="system-ui, sans-serif" font-size="14">OR NEAR wildcard*</text>
+  <g class="matrix-cell" role="cell" aria-colindex="1" aria-label="q12-literal-operators, query OR NEAR wildcard*; document lexical-ranking, Deterministic retrieval ranking; relevance grade 0; not retrieved" data-query-id="q12-literal-operators" data-document-id="lexical-ranking" data-grade="0" data-rank="0" data-score="0">
+    <rect x="533" y="941" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="2" aria-label="q12-literal-operators, query OR NEAR wildcard*; document literal-operators, Operator words are data; relevance grade 3; rank 1, score 9" data-query-id="q12-literal-operators" data-document-id="literal-operators" data-grade="3" data-rank="1" data-score="9">
+    <rect x="753" y="941" width="214" height="62" rx="9" fill="#dbe9ff" stroke="#7a5200" stroke-width="3"/>
+    <text x="860" y="978" text-anchor="middle" fill="#182536" font-family="ui-monospace, monospace" font-size="14" font-weight="700">r1 · s9</text>
+    <rect x="922" y="948" width="36" height="22" rx="7" fill="#7a5200"/>
+    <text x="940" y="964" text-anchor="middle" fill="#ffffff" font-family="ui-monospace, monospace" font-size="12" font-weight="750">g3</text>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="3" aria-label="q12-literal-operators, query OR NEAR wildcard*; document prompt-boundary, Prompt assembly boundary; relevance grade 0; not retrieved" data-query-id="q12-literal-operators" data-document-id="prompt-boundary" data-grade="0" data-rank="0" data-score="0">
+    <rect x="973" y="941" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="4" aria-label="q12-literal-operators, query OR NEAR wildcard*; document retrieval-safety, Retrieval safety; relevance grade 0; not retrieved" data-query-id="q12-literal-operators" data-document-id="retrieval-safety" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1193" y="941" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="5" aria-label="q12-literal-operators, query OR NEAR wildcard*; document sqlite-snapshot, SQLite snapshot isolation; relevance grade 0; not retrieved" data-query-id="q12-literal-operators" data-document-id="sqlite-snapshot" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1413" y="941" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="6" aria-label="q12-literal-operators, query OR NEAR wildcard*; document tombstone-boundary, Tombstone retention boundary; relevance grade 0; not retrieved" data-query-id="q12-literal-operators" data-document-id="tombstone-boundary" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1633" y="941" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="7" aria-label="q12-literal-operators, query OR NEAR wildcard*; document unicode-profile, Unicode normalization profile; relevance grade 0; not retrieved" data-query-id="q12-literal-operators" data-document-id="unicode-profile" data-grade="0" data-rank="0" data-score="0">
+    <rect x="1853" y="941" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  <g class="matrix-cell" role="cell" aria-colindex="8" aria-label="q12-literal-operators, query OR NEAR wildcard*; document wheel-evidence, Offline wheel verification; relevance grade 0; not retrieved" data-query-id="q12-literal-operators" data-document-id="wheel-evidence" data-grade="0" data-rank="0" data-score="0">
+    <rect x="2073" y="941" width="214" height="62" rx="9" fill="#ffffff" stroke="#66768a" stroke-width="1"/>
+  </g>
+  </g>
+  </g>
+  <text class="body" x="60" y="1035">Within-query rank:</text>
+  <rect x="245" y="1013" width="38" height="26" rx="6" fill="#dbe9ff" stroke="#214f8c" stroke-width="2"/>
+  <text class="small" x="293" y="1035">r1</text>
+  <rect x="390" y="1013" width="38" height="26" rx="6" fill="#eaf2ff" stroke="#2f66b3" stroke-width="2"/>
+  <text class="small" x="438" y="1035">r2</text>
+  <rect x="535" y="1013" width="38" height="26" rx="6" fill="#f3f8ff" stroke="#5b7fb3" stroke-width="2"/>
+  <text class="small" x="583" y="1035">r3</text>
+  <rect x="680" y="1013" width="38" height="26" rx="6" fill="#fbfcfe" stroke="#66768a" stroke-width="2"/>
+  <text class="small" x="728" y="1035">r4</text>
+  <rect x="850" y="1013" width="38" height="26" rx="6" fill="#ffffff" stroke="#7a5200" stroke-width="3"/>
+  <text class="small" x="898" y="1035">judged relevant (g1-g3)</text>
+  <rect x="1210" y="1013" width="38" height="26" rx="6" fill="#fff0e4" stroke="#9c4813" stroke-width="3"/>
+  <text class="small" x="1258" y="1035">relevant, not retrieved</text>
+  <rect x="60" y="1070" width="2280" height="82" rx="14" fill="#eef3f8" stroke="#66768a" stroke-width="2"/>
+  <text class="body" x="86" y="1102">Operator-shaped input stays data: OR NEAR wildcard* → terms [or, near, wildcard]</text>
+  <text class="mono" x="86" y="1132">encoded [u6f72, u6e656172, u77696c6463617264] → “u6f72” AND “u6e656172” AND “u77696c6463617264”</text>
+  <text class="mono" x="60" y="1190">sources: evals/lexical-v1/{corpus.v1.json, queries.v1.json, expected.v1.json} · renderer: tools/render_lexical_eval_visuals.py</text>
+  <text class="mono" x="60" y="1212">corpus sha256  a41bbb16bf618f0dbfaf9f62f7c85696db6d0e7ff6113491c4bcfe71cb7658e7</text>
+  <text class="mono" x="60" y="1234">queries sha256 d0fbf57ea8396eaa97a9093a9ca24a473564f3f3c3d8aa87dce70f6002aba7dd</text>
+  <text class="mono" x="60" y="1256">expected sha256 ae5a3c4815ef9988e72de76e51408790dd9ac980bacc3a8ce00db58102a288c9</text>
+  <text class="mono" x="60" y="1278">lexical contract v1 · runtime-bound Unicode profile</text>
+</svg>

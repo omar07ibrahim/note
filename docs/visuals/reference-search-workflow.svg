@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2000 1240" data-entry="bounded-query" role="img" aria-labelledby="reference-search-workflow-title reference-search-workflow-description">
+  <title id="reference-search-workflow-title">Bounded reference-search correctness path</title>
+  <desc id="reference-search-workflow-description">Source-derived workflow for RecallLedger's dependency-free lexical reference search. A bounded strict UTF-8 query is compiled before one deferred SQLite read snapshot. The operation enumerates the complete bounded tenant head inventory, proves that no tenant event identity is orphaned from that inventory, reconciles every current head from canonical event bytes, excludes verified tombstones, accounts for every live UTF-8 content byte, scores every live head, sorts the complete match set, and only then applies top-K while retaining current-head citations. Capacity or integrity failure aborts the whole operation. The diagram does not represent authorization, a persistent index, a cryptographic signature, or a latency benchmark.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#35516f"/>
+    </marker>
+    <marker id="arrow-warning" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#b95d1a"/>
+    </marker>
+    <style>
+      text { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #182536; }
+      .canvas { fill: #fbfcfe; }
+      .header-rule { stroke: #d8e0ea; stroke-width: 2; }
+      .diagram-title { font-size: 34px; font-weight: 750; letter-spacing: -0.6px; }
+      .diagram-subtitle { font-size: 17px; fill: #526276; }
+      .lane rect { fill: #f7f9fc; stroke: #66768a; stroke-width: 1.5; }
+      .lane-label { font-size: 13px; font-weight: 750; letter-spacing: 1.4px; fill: #405166; }
+      .node rect, .note rect { stroke-width: 2; }
+      .node-primary rect { fill: #eaf2ff; stroke: #2f66b3; }
+      .node-strong rect { fill: #dbe9ff; stroke: #214f8c; }
+      .node-accent rect { fill: #fff4d8; stroke: #ae7617; }
+      .node-neutral rect { fill: #f5f7fa; stroke: #66768a; }
+      .node-storage rect { fill: #eef1f5; stroke: #455468; }
+      .node-output rect { fill: #f3f8ff; stroke: #5b7fb3; }
+      .node-warning rect { fill: #fff0e4; stroke: #b95d1a; }
+      .node-title, .note-title { font-size: 17px; font-weight: 750; }
+      .node-detail, .note-detail { font-size: 13px; fill: #405166; }
+      .edge { fill: none; stroke: #35516f; stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; }
+      .edge-dashed { stroke-dasharray: 8 7; }
+      .edge-warning { stroke: #b95d1a; stroke-dasharray: 5 5; }
+      .edge-label rect { fill: #fbfcfe; stroke: #dce3ec; stroke-width: 1; }
+      .edge-label text { font-size: 12px; font-weight: 650; fill: #405166; }
+      .caption { font-size: 12px; fill: #405166; }
+    </style>
+  </defs>
+  <rect class="canvas" x="0" y="0" width="2000" height="1240"/>
+  <text class="diagram-title" x="48" y="58">Bounded reference-search correctness path</text>
+  <text class="diagram-subtitle" x="48" y="91">Compile once, verify the complete tenant snapshot, then rank every live current head</text>
+  <line class="header-rule" x1="48" y1="116" x2="1952" y2="116"/>
+  <g class="lane" data-binding="query-reader"><rect x="40" y="150" width="330" height="1000" rx="20"/>
+    <text class="lane-label" x="64" y="184">BOUNDED QUERY INPUT</text>
+  </g>
+  <g class="lane" data-binding="public-search"><rect x="420" y="150" width="650" height="1000" rx="20"/>
+    <text class="lane-label" x="444" y="184">ONE VERIFIED SQLITE SNAPSHOT</text>
+  </g>
+  <g class="lane" data-binding="match-collection"><rect x="1120" y="150" width="450" height="1000" rx="20"/>
+    <text class="lane-label" x="1144" y="184">COMPLETE CORPUS RANKING</text>
+  </g>
+  <g class="lane" data-binding="result-model"><rect x="1640" y="150" width="320" height="1000" rx="20"/>
+    <text class="lane-label" x="1664" y="184">BOUNDED RESULT</text>
+  </g>
+  <path class="edge edge-solid" id="query-to-compile" data-binding="query-reader" d="M 200 320 L 200 365" marker-end="url(#arrow)"/>
+  <path class="edge edge-solid" id="compile-to-snapshot" data-binding="query-compiler" d="M 325 420 L 465 420" marker-end="url(#arrow)"/>
+  <path class="edge edge-solid" id="snapshot-to-inventory" data-binding="public-search" d="M 745 475 L 745 520" marker-end="url(#arrow)"/>
+  <path class="edge edge-solid" id="inventory-to-orphan-proof" data-binding="head-inventory" d="M 745 630 L 745 675" marker-end="url(#arrow)"/>
+  <path class="edge edge-solid" id="orphan-proof-to-heads" data-binding="orphan-proof" d="M 745 785 L 745 830" marker-end="url(#arrow)"/>
+  <path class="edge edge-solid" id="verified-heads-to-live" data-binding="tombstone-exclusion" d="M 1025 885 L 1160 885" marker-end="url(#arrow)"/>
+  <path class="edge edge-solid" id="live-to-score" data-binding="live-content-bound" d="M 1350 940 L 1350 990" marker-end="url(#arrow)"/>
+  <path class="edge edge-solid" id="score-to-result" data-binding="full-match-sort" d="M 1540 1045 L 1680 1045" marker-end="url(#arrow)"/>
+  <g class="node node-accent" id="bounded-query" data-binding="query-reader">
+    <rect x="75" y="210" width="250" height="110" rx="16"/>
+    <text class="node-title" x="97" y="244">Bounded query</text>
+    <text class="node-detail" x="97" y="272">regular file or stdin</text>
+    <text class="node-detail" x="97" y="293">strict UTF-8, &lt;=1,024 B</text>
+  </g>
+  <g class="node node-primary" id="compile-query" data-binding="query-compiler">
+    <rect x="75" y="365" width="250" height="110" rx="16"/>
+    <text class="node-title" x="97" y="399">Compile query</text>
+    <text class="node-detail" x="97" y="427">NFKC-casefold-NFKC</text>
+    <text class="node-detail" x="97" y="448">inert all-terms AND</text>
+  </g>
+  <g class="node node-storage" id="snapshot" data-binding="public-search">
+    <rect x="465" y="365" width="560" height="110" rx="16"/>
+    <text class="node-title" x="487" y="399">Deferred read snapshot</text>
+    <text class="node-detail" x="487" y="427">BEGIN, schema cookie checked</text>
+    <text class="node-detail" x="487" y="448">one tenant-consistent view</text>
+  </g>
+  <g class="node node-storage" id="inventory" data-binding="head-inventory">
+    <rect x="465" y="520" width="560" height="110" rx="16"/>
+    <text class="node-title" x="487" y="554">Enumerate every tenant head</text>
+    <text class="node-detail" x="487" y="582">tombstones + off-query heads</text>
+    <text class="node-detail" x="487" y="603">&lt;=1,000 or fail closed</text>
+  </g>
+  <g class="node node-warning" id="orphan-proof" data-binding="orphan-proof">
+    <rect x="465" y="675" width="560" height="110" rx="16"/>
+    <text class="node-title" x="487" y="709">Event-to-head orphan proof</text>
+    <text class="node-detail" x="487" y="737">distinct event note IDs</text>
+    <text class="node-detail" x="487" y="758">bounded keyset seeks</text>
+  </g>
+  <g class="node node-strong" id="verify-heads" data-binding="head-verifier">
+    <rect x="465" y="830" width="560" height="110" rx="16"/>
+    <text class="node-title" x="487" y="864">Reconcile current heads</text>
+    <text class="node-detail" x="487" y="892">canonical event bytes + row</text>
+    <text class="node-detail" x="487" y="913">head pointer and flags agree</text>
+  </g>
+  <g class="node node-primary" id="live-corpus" data-binding="utf8-content-accounting">
+    <rect x="1160" y="830" width="380" height="110" rx="16"/>
+    <text class="node-title" x="1182" y="864">Live-head accounting</text>
+    <text class="node-detail" x="1182" y="892">skip verified tombstones</text>
+    <text class="node-detail" x="1182" y="913">UTF-8 content &lt;=16 MiB</text>
+  </g>
+  <g class="node node-primary" id="score-all" data-binding="live-head-scoring">
+    <rect x="1160" y="990" width="380" height="110" rx="16"/>
+    <text class="node-title" x="1182" y="1024">Score every live head</text>
+    <text class="node-detail" x="1182" y="1052">deterministic integer score</text>
+    <text class="node-detail" x="1182" y="1073">retain every lexical match</text>
+  </g>
+  <g class="node node-output" id="ranked-result" data-binding="top-k-slice">
+    <rect x="1680" y="990" width="240" height="110" rx="16"/>
+    <text class="node-title" x="1702" y="1024">Ranked result</text>
+    <text class="node-detail" x="1702" y="1052">full-set sort</text>
+    <text class="node-detail" x="1702" y="1073">top-K + citations</text>
+  </g>
+  <g class="edge-label" data-edge="query-to-compile" data-binding="query-reader">
+    <rect x="137" y="327" width="126" height="26" rx="8"/>
+    <text x="200" y="344" text-anchor="middle">strict UTF-8</text>
+  </g>
+  <g class="edge-label" data-edge="compile-to-snapshot" data-binding="query-compiler">
+    <rect x="337" y="383" width="116" height="26" rx="8"/>
+    <text x="395" y="400" text-anchor="middle">compiled</text>
+  </g>
+  <g class="edge-label" data-edge="snapshot-to-inventory" data-binding="public-search">
+    <rect x="677" y="482" width="136" height="26" rx="8"/>
+    <text x="745" y="499" text-anchor="middle">same snapshot</text>
+  </g>
+  <g class="edge-label" data-edge="inventory-to-orphan-proof" data-binding="head-inventory">
+    <rect x="680" y="637" width="131" height="26" rx="8"/>
+    <text x="745" y="654" text-anchor="middle">complete IDs</text>
+  </g>
+  <g class="edge-label" data-edge="orphan-proof-to-heads" data-binding="orphan-proof">
+    <rect x="669" y="792" width="152" height="26" rx="8"/>
+    <text x="745" y="809" text-anchor="middle">no event orphans</text>
+  </g>
+  <g class="edge-label" data-edge="verified-heads-to-live" data-binding="tombstone-exclusion">
+    <rect x="1034" y="848" width="116" height="26" rx="8"/>
+    <text x="1092" y="865" text-anchor="middle">live heads</text>
+  </g>
+  <g class="edge-label" data-edge="live-to-score" data-binding="live-content-bound">
+    <rect x="1280" y="952" width="140" height="26" rx="8"/>
+    <text x="1350" y="969" text-anchor="middle">within 16 MiB</text>
+  </g>
+  <g class="edge-label" data-edge="score-to-result" data-binding="full-match-sort">
+    <rect x="1546" y="1008" width="129" height="26" rx="8"/>
+    <text x="1610" y="1025" text-anchor="middle">full-set sort</text>
+  </g>
+  <g class="note node-warning" id="fail-closed-note" data-binding="fail-closed-contract">
+    <rect x="75" y="570" width="250" height="115" rx="16"/>
+    <text class="note-title" x="95" y="600">Fail closed</text>
+    <text class="note-detail" x="95" y="626">Bounds or integrity</text>
+    <text class="note-detail" x="95" y="646">failure aborts the scan.</text>
+    <text class="note-detail" x="95" y="666">No partial prefix.</text>
+  </g>
+  <g class="note node-neutral" id="scope-boundary-note" data-binding="scope-contract">
+    <rect x="75" y="755" width="250" height="135" rx="16"/>
+    <text class="note-title" x="95" y="785">Scope boundary</text>
+    <text class="note-detail" x="95" y="811">No authorization.</text>
+    <text class="note-detail" x="95" y="831">Citation, not signature.</text>
+    <text class="note-detail" x="95" y="851">No persistent index.</text>
+    <text class="note-detail" x="95" y="871">No latency claim.</text>
+  </g>
+  <text class="caption" x="48" y="1215">Source-derived reference path; complete bounded scan, not a latency benchmark · Source: reference-search-workflow.v1.json</text>
+</svg>

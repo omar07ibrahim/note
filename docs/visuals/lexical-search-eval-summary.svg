@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="900" viewBox="0 0 2000 900" role="img" aria-labelledby="lexical-search-eval-summary-title lexical-search-eval-summary-description" data-suite-id="recall-ledger-lexical-v1" data-corpus-sha256="a41bbb16bf618f0dbfaf9f62f7c85696db6d0e7ff6113491c4bcfe71cb7658e7" data-queries-sha256="d0fbf57ea8396eaa97a9093a9ca24a473564f3f3c3d8aa87dce70f6002aba7dd" data-expected-sha256="ae5a3c4815ef9988e72de76e51408790dd9ac980bacc3a8ce00db58102a288c9" data-unicode-profile-policy="runtime-bound">
+  <title id="lexical-search-eval-summary-title">Frozen lexical evaluation scorecard</title>
+  <desc id="lexical-search-eval-summary-description">Seven exact KPI cards from the validated twelve-query synthetic conformance suite, including one disclosed semantic miss.</desc>
+  <style>
+    .title { fill: #182536; font: 700 34px system-ui, sans-serif; }
+    .subtitle { fill: #405166; font: 500 17px system-ui, sans-serif; }
+    .body { fill: #182536; font: 500 15px system-ui, sans-serif; }
+    .small { fill: #526276; font: 500 13px system-ui, sans-serif; }
+    .mono { fill: #526276; font: 500 12px ui-monospace, monospace; }
+  </style>
+  <rect width="2000" height="900" fill="#f7f9fc"/>
+  <text class="title" x="60" y="58">Frozen lexical evaluation · v1</text>
+  <text class="subtitle" x="60" y="91">12 queries · 8 synthetic documents · exact fractions and fixed-point percentages · no cross-metric bars</text>
+  <text class="small" x="60" y="121">A conformance scorecard, not a semantic quality, production traffic, or latency benchmark.</text>
+  <g class="kpi" data-metric="exact_outcome_rate" data-numerator="12" data-denominator="12" data-ppm="1000000">
+    <rect class="kpi-card" x="60" y="155" width="450" height="175" rx="16" fill="#ffffff" stroke="#66768a" stroke-width="2"/>
+    <text class="body" x="86" y="197">Exact outcomes</text>
+    <text x="86" y="256" fill="#182536" font-family="system-ui, sans-serif" font-size="38" font-weight="750">12/12</text>
+    <text x="484" y="256" text-anchor="end" fill="#405166" font-family="system-ui, sans-serif" font-size="25" font-weight="650">100.0%</text>
+    <text class="small" x="86" y="297">exact denominator shown</text>
+  </g>
+  <g class="kpi" data-metric="success_at_1" data-numerator="11" data-denominator="12" data-ppm="916667">
+    <rect class="kpi-card" x="530" y="155" width="450" height="175" rx="16" fill="#ffffff" stroke="#66768a" stroke-width="2"/>
+    <text class="body" x="556" y="197">Success @ 1</text>
+    <text x="556" y="256" fill="#182536" font-family="system-ui, sans-serif" font-size="38" font-weight="750">11/12</text>
+    <text x="954" y="256" text-anchor="end" fill="#405166" font-family="system-ui, sans-serif" font-size="25" font-weight="650">91.7%</text>
+    <text class="small" x="556" y="297">exact denominator shown</text>
+  </g>
+  <g class="kpi" data-metric="macro_recall_at_5" data-numerator="11" data-denominator="12" data-ppm="916667">
+    <rect class="kpi-card" x="1000" y="155" width="450" height="175" rx="16" fill="#ffffff" stroke="#66768a" stroke-width="2"/>
+    <text class="body" x="1026" y="197">Macro Recall @ 5</text>
+    <text x="1026" y="256" fill="#182536" font-family="system-ui, sans-serif" font-size="38" font-weight="750">11/12</text>
+    <text x="1424" y="256" text-anchor="end" fill="#405166" font-family="system-ui, sans-serif" font-size="25" font-weight="650">91.7%</text>
+    <text class="small" x="1026" y="297">exact denominator shown</text>
+  </g>
+  <g class="kpi" data-metric="micro_recall_at_5" data-numerator="16" data-denominator="17" data-ppm="941176">
+    <rect class="kpi-card" x="1470" y="155" width="450" height="175" rx="16" fill="#ffffff" stroke="#66768a" stroke-width="2"/>
+    <text class="body" x="1496" y="197">Micro Recall @ 5</text>
+    <text x="1496" y="256" fill="#182536" font-family="system-ui, sans-serif" font-size="38" font-weight="750">16/17</text>
+    <text x="1894" y="256" text-anchor="end" fill="#405166" font-family="system-ui, sans-serif" font-size="25" font-weight="650">94.1%</text>
+    <text class="small" x="1496" y="297">exact denominator shown</text>
+  </g>
+  <g class="kpi" data-metric="mrr_at_5" data-numerator="11" data-denominator="12" data-ppm="916667">
+    <rect class="kpi-card" x="60" y="360" width="450" height="175" rx="16" fill="#ffffff" stroke="#66768a" stroke-width="2"/>
+    <text class="body" x="86" y="402">MRR @ 5</text>
+    <text x="86" y="461" fill="#182536" font-family="system-ui, sans-serif" font-size="38" font-weight="750">11/12</text>
+    <text x="484" y="461" text-anchor="end" fill="#405166" font-family="system-ui, sans-serif" font-size="25" font-weight="650">91.7%</text>
+    <text class="small" x="86" y="502">exact denominator shown</text>
+  </g>
+  <g class="kpi" data-metric="macro_ndcg_at_5" data-numerator="11" data-denominator="12" data-ppm="916667">
+    <rect class="kpi-card" x="530" y="360" width="450" height="175" rx="16" fill="#ffffff" stroke="#66768a" stroke-width="2"/>
+    <text class="body" x="556" y="402">Macro nDCG @ 5</text>
+    <text x="556" y="461" fill="#182536" font-family="system-ui, sans-serif" font-size="38" font-weight="750">11/12</text>
+    <text x="954" y="461" text-anchor="end" fill="#405166" font-family="system-ui, sans-serif" font-size="25" font-weight="650">91.7%</text>
+    <text class="small" x="556" y="502">exact denominator shown</text>
+  </g>
+  <g class="kpi" data-metric="unexpected_hit_count" data-count="0">
+    <rect class="kpi-card" x="1000" y="360" width="450" height="175" rx="16" fill="#ffffff" stroke="#66768a" stroke-width="2"/>
+    <text class="body" x="1026" y="402">Unexpected hits</text>
+    <text x="1026" y="461" fill="#182536" font-family="system-ui, sans-serif" font-size="38" font-weight="750">0</text>
+    <text class="small" x="1026" y="502">count across all frozen outcomes</text>
+  </g>
+  <rect x="60" y="575" width="1880" height="132" rx="16" fill="#fff0e4" stroke="#9c4813" stroke-width="2"/>
+  <text x="88" y="615" fill="#9c4813" font-family="system-ui, sans-serif" font-size="18" font-weight="750">Known semantic miss · disclosed, not hidden</text>
+  <text class="body" x="88" y="651">“remove note” returned 0 lexical hits although tombstone-boundary is judged g3 relevant.</text>
+  <text class="small" x="88" y="682">RecallLedger makes no semantic-retrieval claim; macro Recall, MRR, and nDCG co-move here and are not independent evidence.</text>
+  <text class="mono" x="60" y="750">sources: evals/lexical-v1/{corpus.v1.json, queries.v1.json, expected.v1.json} · renderer: tools/render_lexical_eval_visuals.py</text>
+  <text class="mono" x="60" y="772">corpus sha256  a41bbb16bf618f0dbfaf9f62f7c85696db6d0e7ff6113491c4bcfe71cb7658e7</text>
+  <text class="mono" x="60" y="794">queries sha256 d0fbf57ea8396eaa97a9093a9ca24a473564f3f3c3d8aa87dce70f6002aba7dd</text>
+  <text class="mono" x="60" y="816">expected sha256 ae5a3c4815ef9988e72de76e51408790dd9ac980bacc3a8ce00db58102a288c9</text>
+  <text class="mono" x="60" y="838">lexical contract v1 · runtime-bound Unicode profile</text>
+</svg>

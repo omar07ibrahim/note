@@ -113,6 +113,7 @@ def test_workflow_runs_every_fail_closed_review_boundary() -> None:
         "python tools/lexical_eval_contract.py",
         "python tools/render_visuals.py --check",
         "python tools/render_cli_evidence.py --check",
+        "python tools/render_lexical_eval_visuals.py --check",
         "python tools/capture_cli_evidence.py --check-portable-runtime",
         "python -m pytest",
         'test -z "$(git status --porcelain=v1 --untracked-files=all)"',

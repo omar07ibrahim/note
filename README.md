@@ -8,14 +8,15 @@ measured hybrid retrieval.
 
 It is not currently a Telegram bot or a generic CRUD application.
 
-> **Phase 3b — installed lexical search CLI.** The current tree combines bounded,
+> **Phase 3c — frozen lexical conformance evidence.** The current tree combines bounded,
 > canonical, tenant-scoped note events with a versioned, locked SQLite
 > boundary, transactional create/revise/tombstone/head/history operations, and
 > a deterministic tenant-local search oracle over every verified current head.
 > The installed `recall-ledger` console script exposes that reference path as
-> canonical JSON or JSONL. No authorization adapter, persistent retrieval
-> index, model integration, evaluation benchmark, or user interface is claimed
-> yet.
+> canonical JSON or JSONL. A frozen synthetic suite now reproduces the
+> production scorer's exact outcomes and explicitly records its known synonym
+> miss. No authorization adapter, persistent retrieval index, semantic-search
+> benchmark, model integration, or user interface is claimed yet.
 
 The storage slice currently supports Linux/POSIX deployments only. Its
 `fcntl`, `flock`, `O_DIRECTORY`, `O_NOFOLLOW`, and fork-safety contract is
@@ -154,7 +155,8 @@ environment without resolving runtime dependencies:
 ```bash
 python3 -m venv .venv
 . .venv/bin/activate
-python -m pip install '.[dev]'
+python -m pip install --require-hashes -r requirements-dev.lock
+python -m pip install --no-deps --no-build-isolation --editable .
 python -m build --wheel --no-isolation
 
 python3 -m venv .runtime
@@ -189,6 +191,37 @@ printf '%s' 'portfolio evidence' | .runtime/bin/recall-ledger \
 The synthetic IDs and content above are reproducible documentation fixtures;
 they are not credentials or user data.
 
+## Frozen lexical conformance evaluation
+
+The versioned lexical suite runs twelve hand-authored queries against eight
+synthetic current-head documents through the production query compiler and
+integer scorer. Every query-document pair has an explicit relevance grade;
+the validator recomputes the observed order, exact score components, and
+integer metrics before a visual can be rendered.
+
+![Frozen lexical evaluation scorecard with exact denominators and disclosed miss](docs/visuals/lexical-search-eval-summary.svg)
+
+This is a conformance result, not a production or semantic-search benchmark.
+Eleven queries recover their judged targets perfectly; `remove note` retrieves
+nothing although `tombstone-boundary` is judged strongly relevant. That miss is
+kept visible instead of being tuned away.
+
+![Complete frozen query-by-document relevance and ranking matrix](docs/visuals/lexical-search-query-matrix.svg)
+
+Cell fill represents rank only within the same query. Raw scores remain labels,
+because totals from different token sets are not comparable. Gold badges show
+human relevance grades, including the orange `g3` miss.
+
+![Production score decomposition for the frozen retrieval query](docs/visuals/lexical-search-ranking-breakdown.svg)
+
+The score decomposition compares one query on one shared zero baseline:
+title-term frequency contributes 12, tag frequency 8, and body frequency 3
+per capped occurrence. The frozen [data card](evals/lexical-v1/DATA_CARD.md),
+[corpus](evals/lexical-v1/corpus.v1.json),
+[queries and judgments](evals/lexical-v1/queries.v1.json), and
+[expected production outcomes](evals/lexical-v1/expected.v1.json) are the only
+data sources for these three SVGs.
+
 ## Verified installed-wheel workflow
 
 These are rendered from a real ten-command run of the installed console script,
@@ -219,11 +252,19 @@ and verification assertions are reviewable in
 
 ## Source-bound architecture and failure behavior
 
+![Bounded reference-search correctness path](docs/visuals/reference-search-workflow.svg)
+
+The focused search path shows why top-K is applied only after a complete,
+bounded tenant snapshot has passed head inventory, orphan detection, canonical
+event reconciliation, tombstone exclusion, UTF-8 accounting, and full-set
+scoring. Bounds or integrity failure abort the operation without a partial
+prefix.
+
 ![Implemented RecallLedger CLI and ledger architecture](docs/visuals/architecture-workflow.svg)
 
 ![RecallLedger write settlement and retry state machine](docs/visuals/transaction-output-retry.svg)
 
-Both diagrams are bound to named implementation symbols and exact written
+All three diagrams are bound to named implementation symbols and exact written
 contracts. Their scope, regeneration commands, and non-claims are documented
 in [the visual evidence index](docs/visuals/README.md).
 
@@ -232,11 +273,14 @@ in [the visual evidence index](docs/visuals/README.md).
 ```bash
 python3 -m venv .venv
 . .venv/bin/activate
-python3 -m pip install -e '.[dev]'
-pytest
-ruff check .
-ruff format --check .
-mypy
+python -m pip install --require-hashes -r requirements-dev.lock
+python -m pip install --no-deps --no-build-isolation --editable .
+python -m pytest
+python -m ruff check .
+python -m ruff format --check .
+python -m mypy src tests tools
+python tools/lexical_eval_contract.py
+python tools/render_lexical_eval_visuals.py --check
 ```
 
 ## Evidence policy
@@ -246,9 +290,10 @@ Each screenshot, diagram, plot, or recording must name its source fixture and
 regeneration command, pass a freshness check, and contain no private notes,
 identifiers, tokens, or personal data. Speculative mockups are not evidence.
 
-The current installed-wheel transcripts, source-bound architecture and failure
-diagram, their versioned inputs, regeneration commands, and non-claims are
-documented in [the visual evidence index](docs/visuals/README.md).
+The current installed-wheel transcripts, lexical evaluation figures,
+source-bound architecture diagrams, versioned inputs, regeneration commands,
+and non-claims are documented in
+[the visual evidence index](docs/visuals/README.md).
 
 Benchmarks will compare simple lexical and recency baselines before claiming
 that embeddings or an LLM improve retrieval. Evaluation fixtures will be

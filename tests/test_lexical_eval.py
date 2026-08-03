@@ -30,7 +30,12 @@ SDIST_REVIEW_FILES = SOURCE_FILES | {
     "requirements-dev.lock",
     "tests/test_ci_contract.py",
     "tests/test_lexical_eval.py",
+    "tests/test_lexical_eval_visuals.py",
     "tools/lexical_eval_contract.py",
+    "tools/render_lexical_eval_visuals.py",
+    "docs/visuals/lexical-search-eval-summary.svg",
+    "docs/visuals/lexical-search-query-matrix.svg",
+    "docs/visuals/lexical-search-ranking-breakdown.svg",
 }
 
 

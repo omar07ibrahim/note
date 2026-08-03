@@ -66,6 +66,7 @@ jobs:
         run: |
           python tools/render_visuals.py --check
           python tools/render_cli_evidence.py --check
+          python tools/render_lexical_eval_visuals.py --check
 
       - name: Recapture evidence across the compatible Python runtime
         if: matrix.python == '3.12'

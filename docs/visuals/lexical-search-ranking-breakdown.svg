@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="850" viewBox="0 0 1800 850" role="img" aria-labelledby="lexical-search-ranking-breakdown-title lexical-search-ranking-breakdown-description" data-suite-id="recall-ledger-lexical-v1" data-corpus-sha256="a41bbb16bf618f0dbfaf9f62f7c85696db6d0e7ff6113491c4bcfe71cb7658e7" data-queries-sha256="d0fbf57ea8396eaa97a9093a9ca24a473564f3f3c3d8aa87dce70f6002aba7dd" data-expected-sha256="ae5a3c4815ef9988e72de76e51408790dd9ac980bacc3a8ce00db58102a288c9" data-unicode-profile-policy="runtime-bound">
+  <title id="lexical-search-ranking-breakdown-title">q01 retrieval ranking score breakdown</title>
+  <desc id="lexical-search-ranking-breakdown-description">A zero-baseline stacked score breakdown for the four q01 retrieval hits: title, tag, and body components only.</desc>
+  <style>
+    .title { fill: #182536; font: 700 34px system-ui, sans-serif; }
+    .subtitle { fill: #405166; font: 500 17px system-ui, sans-serif; }
+    .body { fill: #182536; font: 500 15px system-ui, sans-serif; }
+    .small { fill: #526276; font: 500 13px system-ui, sans-serif; }
+    .mono { fill: #526276; font: 500 12px ui-monospace, monospace; }
+  </style>
+  <rect width="1800" height="850" fill="#f7f9fc"/>
+  <text class="title" x="60" y="55">Why q01 ranks in this order</text>
+  <text class="subtitle" x="60" y="88">query “retrieval” · one shared zero baseline · integer production score components</text>
+  <text class="small" x="60" y="118">Only this single query is compared; phrase bonuses are 0 for all four hits.</text>
+  <rect x="60" y="145" width="30" height="24" rx="5" fill="#245b93"/>
+  <text x="75" y="162" text-anchor="middle" fill="#ffffff" font-family="ui-monospace, monospace" font-size="12" font-weight="750">T</text>
+  <text class="small" x="100" y="163">title term weight</text>
+  <rect x="245" y="145" width="30" height="24" rx="5" fill="#6b4ea0"/>
+  <text x="260" y="162" text-anchor="middle" fill="#ffffff" font-family="ui-monospace, monospace" font-size="12" font-weight="750">G</text>
+  <text class="small" x="285" y="163">tag term weight</text>
+  <rect x="410" y="145" width="30" height="24" rx="5" fill="#23734d"/>
+  <text x="425" y="162" text-anchor="middle" fill="#ffffff" font-family="ui-monospace, monospace" font-size="12" font-weight="750">B</text>
+  <text class="small" x="450" y="163">body term weight</text>
+  <line x1="420" y1="205" x2="420" y2="650" stroke="#ccd6e2" stroke-width="1"/>
+  <text class="small" x="420" y="194" text-anchor="middle">0</text>
+  <line x1="644" y1="205" x2="644" y2="650" stroke="#ccd6e2" stroke-width="1"/>
+  <text class="small" x="644" y="194" text-anchor="middle">4</text>
+  <line x1="868" y1="205" x2="868" y2="650" stroke="#ccd6e2" stroke-width="1"/>
+  <text class="small" x="868" y="194" text-anchor="middle">8</text>
+  <line x1="1092" y1="205" x2="1092" y2="650" stroke="#ccd6e2" stroke-width="1"/>
+  <text class="small" x="1092" y="194" text-anchor="middle">12</text>
+  <line x1="1316" y1="205" x2="1316" y2="650" stroke="#ccd6e2" stroke-width="1"/>
+  <text class="small" x="1316" y="194" text-anchor="middle">16</text>
+  <line x1="1540" y1="205" x2="1540" y2="650" stroke="#ccd6e2" stroke-width="1"/>
+  <text class="small" x="1540" y="194" text-anchor="middle">20</text>
+  <g class="score-row" data-document-id="retrieval-safety" data-rank="1" data-grade="3" data-total="20" data-title="1" data-tag="1" data-body="0">
+    <text x="60" y="252" fill="#182536" font-family="system-ui, sans-serif" font-size="16" font-weight="700">Retrieval safety</text>
+    <text class="small" x="60" y="277">r1 · g3 · total 20</text>
+    <rect x="420" y="230" width="1120" height="58" rx="8" fill="#ffffff" stroke="#66768a" stroke-width="2"/>
+    <rect class="score-segment" data-component="title" data-value="12" x="420" y="230" width="672" height="58" fill="#245b93"/>
+    <text x="756" y="267" text-anchor="middle" fill="#ffffff" font-family="ui-monospace, monospace" font-size="14" font-weight="750">T 12</text>
+    <rect class="score-segment" data-component="tag" data-value="8" x="1092" y="230" width="448" height="58" fill="#6b4ea0"/>
+    <text x="1316" y="267" text-anchor="middle" fill="#ffffff" font-family="ui-monospace, monospace" font-size="14" font-weight="750">G 8</text>
+    <text x="1554" y="267" fill="#182536" font-family="ui-monospace, monospace" font-size="14" font-weight="750">20</text>
+  </g>
+  <g class="score-row" data-document-id="lexical-ranking" data-rank="2" data-grade="3" data-total="12" data-title="1" data-tag="0" data-body="0">
+    <text x="60" y="357" fill="#182536" font-family="system-ui, sans-serif" font-size="16" font-weight="700">Deterministic retrieval ranking</text>
+    <text class="small" x="60" y="382">r2 · g3 · total 12</text>
+    <rect x="420" y="335" width="1120" height="58" rx="8" fill="#ffffff" stroke="#66768a" stroke-width="2"/>
+    <rect class="score-segment" data-component="title" data-value="12" x="420" y="335" width="672" height="58" fill="#245b93"/>
+    <text x="756" y="372" text-anchor="middle" fill="#ffffff" font-family="ui-monospace, monospace" font-size="14" font-weight="750">T 12</text>
+    <text x="1106" y="372" fill="#182536" font-family="ui-monospace, monospace" font-size="14" font-weight="750">12</text>
+  </g>
+  <g class="score-row" data-document-id="unicode-profile" data-rank="3" data-grade="2" data-total="8" data-title="0" data-tag="1" data-body="0">
+    <text x="60" y="462" fill="#182536" font-family="system-ui, sans-serif" font-size="16" font-weight="700">Unicode normalization profile</text>
+    <text class="small" x="60" y="487">r3 · g2 · total 8</text>
+    <rect x="420" y="440" width="1120" height="58" rx="8" fill="#ffffff" stroke="#66768a" stroke-width="2"/>
+    <rect class="score-segment" data-component="tag" data-value="8" x="420" y="440" width="448" height="58" fill="#6b4ea0"/>
+    <text x="644" y="477" text-anchor="middle" fill="#ffffff" font-family="ui-monospace, monospace" font-size="14" font-weight="750">G 8</text>
+    <text x="882" y="477" fill="#182536" font-family="ui-monospace, monospace" font-size="14" font-weight="750">8</text>
+  </g>
+  <g class="score-row" data-document-id="tombstone-boundary" data-rank="4" data-grade="1" data-total="3" data-title="0" data-tag="0" data-body="1">
+    <text x="60" y="567" fill="#182536" font-family="system-ui, sans-serif" font-size="16" font-weight="700">Tombstone retention boundary</text>
+    <text class="small" x="60" y="592">r4 · g1 · total 3</text>
+    <rect x="420" y="545" width="1120" height="58" rx="8" fill="#ffffff" stroke="#66768a" stroke-width="2"/>
+    <rect class="score-segment" data-component="body" data-value="3" x="420" y="545" width="168" height="58" fill="#23734d"/>
+    <text x="504" y="582" text-anchor="middle" fill="#ffffff" font-family="ui-monospace, monospace" font-size="14" font-weight="750">B 3</text>
+    <text x="602" y="582" fill="#182536" font-family="ui-monospace, monospace" font-size="14" font-weight="750">3</text>
+  </g>
+  <text class="small" x="420" y="675">Score = 12 x title term frequency + 8 x tag term frequency + 3 x body term frequency; q01 phrase bonuses = 0.</text>
+  <text class="mono" x="60" y="720">sources: evals/lexical-v1/{corpus.v1.json, queries.v1.json, expected.v1.json} · renderer: tools/render_lexical_eval_visuals.py</text>
+  <text class="mono" x="60" y="742">corpus sha256  a41bbb16bf618f0dbfaf9f62f7c85696db6d0e7ff6113491c4bcfe71cb7658e7</text>
+  <text class="mono" x="60" y="764">queries sha256 d0fbf57ea8396eaa97a9093a9ca24a473564f3f3c3d8aa87dce70f6002aba7dd</text>
+  <text class="mono" x="60" y="786">expected sha256 ae5a3c4815ef9988e72de76e51408790dd9ac980bacc3a8ce00db58102a288c9</text>
+  <text class="mono" x="60" y="808">lexical contract v1 · runtime-bound Unicode profile</text>
+</svg>

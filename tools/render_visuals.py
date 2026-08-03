@@ -26,6 +26,9 @@ COLOCATED_SVG_NAMES: Final = frozenset(
     {
         "installed-wheel-history-tombstone.svg",
         "installed-wheel-write-replay.svg",
+        "lexical-search-eval-summary.svg",
+        "lexical-search-query-matrix.svg",
+        "lexical-search-ranking-breakdown.svg",
     }
 )
 

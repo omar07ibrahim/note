@@ -1,10 +1,12 @@
 # RecallLedger source-bound visuals
 
-This directory contains two evidence classes. The terminal panels are rendered
-from a validated run of the console script installed from a clean-source wheel.
-The architecture and failure diagrams are generated from bounded, versioned
-JSON sources and checked against the current Python, packaging, and written
-contracts. None of these artifacts is a latency measurement or benchmark.
+This directory contains three evidence classes. The terminal panels are
+rendered from a validated run of the console script installed from a
+clean-source wheel. The evaluation figures are computed from one frozen,
+hash-bound lexical suite. Architecture and failure diagrams are generated from
+bounded, versioned JSON sources and checked against current Python, packaging,
+and written contracts. None of these artifacts is a latency measurement or a
+production benchmark.
 
 ## Artifacts
 
@@ -40,6 +42,51 @@ tenant ID, command IDs, fixture content, operations, response fields, failure
 code, retry guidance, and exit codes remain exact. The panels do not claim
 authentication, physical deletion, immutable storage against its owner,
 retrieval quality, or measured performance.
+
+### Frozen lexical conformance scorecard
+
+![Frozen lexical conformance scorecard](lexical-search-eval-summary.svg)
+
+Seven equal-footprint cards expose exact numerators, denominators, and
+fixed-point percentages from the validated twelve-query suite. There is no bar
+length encoding across unlike metrics. The warning panel preserves the known
+`remove note` synonym miss and explains why the co-moving macro metrics are not
+independent evidence.
+
+### Complete query-by-document matrix
+
+![Frozen lexical query-by-document matrix](lexical-search-query-matrix.svg)
+
+All 96 judged cells are present. Fill encodes rank only within one query; raw
+integer scores are printed as labels and are never compared across queries.
+Gold outlines and `g1`–`g3` badges encode relevance without relying on color,
+and the strongly relevant missed document is marked explicitly.
+
+### Single-query score decomposition
+
+![Frozen q01 lexical score decomposition](lexical-search-ranking-breakdown.svg)
+
+The four hits for `q01-retrieval` share one zero baseline. Labeled title, tag,
+and body segments expose the production integer components; phrase bonuses are
+zero for all four hits. This figure does not generalize raw scores to other
+queries.
+
+The three figures consume only the validated
+[`lexical-v1` suite](../../evals/lexical-v1/DATA_CARD.md). Their roots carry the
+full corpus, query, and expected-outcome SHA-256 values. They do not claim
+semantic retrieval, representative traffic, statistical uncertainty, or
+latency.
+
+### Bounded reference-search correctness path
+
+![RecallLedger bounded reference-search correctness path](reference-search-workflow.svg)
+
+This focused source-derived diagram follows a query through normalization,
+one deferred SQLite snapshot, complete bounded tenant-head inventory, event
+orphan proof, canonical head reconciliation, live-content accounting, full-set
+scoring, sorting, and only then top-K with citations. Every stage binds to a
+named implementation symbol or the storage contract. It does not represent an
+authorization check, persistent index, signature, or measured latency.
 
 ### Implemented architecture
 
@@ -94,6 +141,14 @@ rewriting them:
 .venv/bin/python tools/render_cli_evidence.py --check
 ```
 
+Byte-exact recapture intentionally requires the recorded Python, pip, and
+SQLite versions because those values are provenance. CI executes the same
+installed-wheel workflow with `--check-portable-runtime`: both documents still
+pass the full evidence contract and every field must match except the four
+explicit builder/installation runtime-version leaves. Builder and installed
+Python must agree, and recapture must remain in the recorded Python major.minor
+series.
+
 The installed RecallLedger runtime remains dependency-free; capture uses only
 the pinned local build toolchain around it. It bounds Git archives, wheels,
 `RECORD`, subprocess input and combined output, canonical JSON/JSONL, installed
@@ -141,21 +196,49 @@ non-text contrast gates. Output is deterministic: it contains no generation
 timestamp, host path, random identifier, remote font, script, or external
 image.
 
+### Lexical evaluation figures
+
+Regenerate all three frozen-suite figures from the repository root:
+
+```bash
+.venv/bin/python tools/render_lexical_eval_visuals.py --write
+```
+
+Check their committed bytes without rewriting them:
+
+```bash
+.venv/bin/python tools/lexical_eval_contract.py
+.venv/bin/python tools/render_lexical_eval_visuals.py --check
+```
+
+The renderer validates the canonical suite once, then re-reads each bounded
+regular source without following links and requires the exact validated digest
+before projecting it. Atomic writes reject symbolic links, hard links, special
+files, unknown output names, and oversized SVG. The matrix contains the full
+judgment grid; the scorecard avoids incomparable length encoding; the breakdown
+uses only one query and one zero baseline. Outputs are deterministic and
+self-contained, with visible source hashes, accessibility labels, and no
+external assets.
+
 ## Source contract
 
 The canonical sources are:
 
 - `evidence/installed-wheel-cli.v1.json`
 - `sources/architecture-workflow.v1.json`
+- `sources/reference-search-workflow.v1.json`
 - `sources/transaction-output-retry.v1.json`
+- `../../evals/lexical-v1/corpus.v1.json`
+- `../../evals/lexical-v1/queries.v1.json`
+- `../../evals/lexical-v1/expected.v1.json`
 
 The evidence document has its own closed cross-step contract. Every lane, node,
-edge, and note in the two diagram sources references a binding. Tests resolve
+edge, and note in the three diagram sources references a binding. Tests resolve
 those bindings against the named Python AST definition, literal constant,
 installed console-script entry, or exact named Markdown section. An exact
 visual-tree allowlist prevents unbound JSON, Markdown, or SVG files from
 entering the package. The sdist gate also checks normalized file modes,
-extracts a clean source archive, imports both renderers, and checks all four
-committed SVG files byte-for-byte. When a bound behavior changes, update the
-source or capture, regenerate its SVG, and keep the code and visual change in
-reviewable commits.
+extracts a clean source archive, imports all three renderers, and checks all
+eight committed SVG files byte-for-byte. When a bound behavior changes, update
+the source or capture, regenerate its SVG, and keep the code and visual change
+in reviewable commits.
