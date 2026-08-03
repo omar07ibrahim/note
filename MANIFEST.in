@@ -1,7 +1,9 @@
 include LICENSE
 include README.md
 include SECURITY.md
+include .github/workflows/ci.yml
 include pyproject.toml
+include requirements-dev.lock
 recursive-include docs *.json *.md *.svg
 recursive-include evals *.json *.md
 recursive-include tests *.py

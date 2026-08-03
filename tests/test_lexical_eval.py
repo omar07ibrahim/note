@@ -26,6 +26,9 @@ SOURCE_FILES = {
     "evals/lexical-v1/queries.v1.json",
 }
 SDIST_REVIEW_FILES = SOURCE_FILES | {
+    ".github/workflows/ci.yml",
+    "requirements-dev.lock",
+    "tests/test_ci_contract.py",
     "tests/test_lexical_eval.py",
     "tools/lexical_eval_contract.py",
 }
@@ -381,6 +384,24 @@ def test_sdist_includes_eval_sources_while_runtime_wheel_excludes_them(
         context="sdist validator stdout",
     )
     assert extracted_summary == contract.validate_suite().to_object()
+
+    extracted_ci_check = subprocess.run(  # noqa: S603 - extracted review-only tests
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_ci_contract.py",
+            "--no-cov",
+        ],
+        cwd=extracted_root,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        check=False,
+        env=subprocess_environment,
+        text=True,
+    )
+    assert extracted_ci_check.returncode == 0, extracted_ci_check.stderr
 
     with zipfile.ZipFile(wheels[0], mode="r") as wheel:
         names = set(wheel.namelist())
