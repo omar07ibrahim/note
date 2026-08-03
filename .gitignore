@@ -5,6 +5,7 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .coverage
+.coverage.*
 htmlcov/
 
 # Virtual environments and local configuration
@@ -16,8 +17,10 @@ venv/
 
 # Local databases, indexes, and generated evidence
 *.db
-*.db-shm
-*.db-wal
+*.db-*
+*.sqlite3
+*.sqlite3-*
+.recall-ledger.lock
 build/
 dist/
 *.egg-info/
