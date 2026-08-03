@@ -3,5 +3,6 @@ include README.md
 include SECURITY.md
 include pyproject.toml
 recursive-include docs *.json *.md *.svg
+recursive-include evals *.json *.md
 recursive-include tests *.py
 recursive-include tools *.py
