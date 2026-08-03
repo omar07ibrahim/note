@@ -550,6 +550,169 @@ def test_terminal_writer_rejects_noncanonical_name_and_symlink_output(
     assert target.read_text(encoding="utf-8") == "unchanged"
 
 
+def _set_document_path(
+    document: contract.JsonObject,
+    path: tuple[str, ...],
+    value: contract.JsonValue,
+) -> None:
+    parent = document
+    for component in path[:-1]:
+        parent = cast(contract.JsonObject, parent[component])
+    parent[path[-1]] = value
+
+
+def _canonical_evidence(document: contract.JsonObject) -> bytes:
+    return contract.canonical_json_bytes(document)
+
+
+def test_portable_runtime_allowlist_is_exact_and_accepts_only_runtime_versions() -> None:
+    expected_paths = (
+        ("provenance", "builder", "python_version"),
+        ("provenance", "installation", "pip_version"),
+        ("provenance", "installation", "python_version"),
+        ("provenance", "installation", "sqlite_version"),
+    )
+    assert expected_paths == capture.PORTABLE_RUNTIME_PROVENANCE_PATHS
+
+    committed = valid_document()
+    recaptured = copy.deepcopy(committed)
+    _set_document_path(recaptured, expected_paths[0], "3.12.13")
+    _set_document_path(recaptured, expected_paths[1], "26.1.2")
+    _set_document_path(recaptured, expected_paths[2], "3.12.13")
+    _set_document_path(recaptured, expected_paths[3], "3.46.1")
+
+    capture._check_portable_runtime_evidence(
+        _canonical_evidence(committed),
+        _canonical_evidence(recaptured),
+    )
+
+
+@pytest.mark.parametrize(
+    ("path", "replacement"),
+    [
+        (("provenance", "source_commit"), "a" * 40),
+        (("provenance", "source_archive", "sha256"), "a" * 64),
+        (("provenance", "capture_inputs", "sha256"), "a" * 64),
+        (("provenance", "wheel", "record_sha256"), "a" * 64),
+        (("provenance", "wheel", "sha256"), "a" * 64),
+        (("provenance", "installation", "installed_files_sha256"), "a" * 64),
+        (("provenance", "builder", "build_version"), "9.9.9"),
+    ],
+)
+def test_portable_runtime_comparison_rejects_nonallowlisted_provenance_drift(
+    path: tuple[str, ...],
+    replacement: contract.JsonValue,
+) -> None:
+    committed = valid_document()
+    recaptured = copy.deepcopy(committed)
+    _set_document_path(recaptured, path, replacement)
+
+    with pytest.raises(capture.CaptureError, match="outside portable runtime provenance"):
+        capture._check_portable_runtime_evidence(
+            _canonical_evidence(committed),
+            _canonical_evidence(recaptured),
+        )
+
+
+def test_portable_runtime_comparison_rejects_scenario_and_verification_drift() -> None:
+    committed = valid_document()
+
+    scenario_drift = copy.deepcopy(committed)
+    steps = cast(list[contract.JsonValue], scenario_drift["steps"])
+    first_step = cast(contract.JsonObject, steps[0])
+    first_step["purpose"] = "Changed workflow claim."
+    with pytest.raises(contract.EvidenceContractError):
+        capture._check_portable_runtime_evidence(
+            _canonical_evidence(committed),
+            _canonical_evidence(scenario_drift),
+        )
+
+    verification_drift = copy.deepcopy(committed)
+    verification = cast(contract.JsonObject, verification_drift["verification"])
+    verification["installed_wheel_decode"] = False
+    with pytest.raises(contract.EvidenceContractError):
+        capture._check_portable_runtime_evidence(
+            _canonical_evidence(committed),
+            _canonical_evidence(verification_drift),
+        )
+
+
+@pytest.mark.parametrize(
+    ("builder_python", "installed_python", "message"),
+    [
+        ("3.12.13", "3.12.12", "builder and installed Python versions differ"),
+        ("3.13.0", "3.13.0", "recorded Python major.minor series"),
+    ],
+)
+def test_portable_runtime_comparison_rejects_incoherent_or_cross_series_python(
+    builder_python: str,
+    installed_python: str,
+    message: str,
+) -> None:
+    committed = valid_document()
+    recaptured = copy.deepcopy(committed)
+    _set_document_path(
+        recaptured,
+        ("provenance", "builder", "python_version"),
+        builder_python,
+    )
+    _set_document_path(
+        recaptured,
+        ("provenance", "installation", "python_version"),
+        installed_python,
+    )
+
+    with pytest.raises(capture.CaptureError, match=message):
+        capture._check_portable_runtime_evidence(
+            _canonical_evidence(committed),
+            _canonical_evidence(recaptured),
+        )
+
+
+def test_check_remains_byte_exact_while_portable_mode_recaptures_recorded_source(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    committed_document = valid_document()
+    committed = _canonical_evidence(committed_document)
+    recaptured_document = copy.deepcopy(committed_document)
+    _set_document_path(
+        recaptured_document,
+        ("provenance", "builder", "python_version"),
+        "3.12.13",
+    )
+    _set_document_path(
+        recaptured_document,
+        ("provenance", "installation", "python_version"),
+        "3.12.13",
+    )
+    _set_document_path(
+        recaptured_document,
+        ("provenance", "installation", "pip_version"),
+        "26.1.2",
+    )
+    recaptured = _canonical_evidence(recaptured_document)
+    source_commit = cast(
+        str,
+        cast(contract.JsonObject, committed_document["provenance"])["source_commit"],
+    )
+    capture_calls: list[tuple[Path, str]] = []
+
+    def fake_capture(root: Path, commit: str) -> bytes:
+        capture_calls.append((root, commit))
+        return recaptured
+
+    monkeypatch.setattr(capture, "_read_committed_evidence", lambda: committed)
+    monkeypatch.setattr(capture, "_check_current_inputs", lambda _document: None)
+    monkeypatch.setattr(capture, "capture_evidence", fake_capture)
+
+    assert capture.main(["--check"]) == 1
+    assert "not byte-for-byte current" in capsys.readouterr().err
+    assert capture.main(["--check-portable-runtime"]) == 0
+    assert capsys.readouterr().err == ""
+    assert capture_calls == [(capture.ROOT, source_commit), (capture.ROOT, source_commit)]
+
+
 def committed_harness_source(commit: str) -> bool:
     result = subprocess.run(  # noqa: S603 - fixed Git argv
         (

@@ -67,9 +67,9 @@ jobs:
           python tools/render_visuals.py --check
           python tools/render_cli_evidence.py --check
 
-      - name: Recapture the historical installed-wheel evidence
+      - name: Recapture evidence across the compatible Python runtime
         if: matrix.python == '3.12'
-        run: python tools/capture_cli_evidence.py --check
+        run: python tools/capture_cli_evidence.py --check-portable-runtime
 
       - name: Run the full branch-coverage and packaging suite
         run: python -m pytest

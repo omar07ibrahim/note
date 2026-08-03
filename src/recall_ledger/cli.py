@@ -56,6 +56,7 @@ _DEFAULT_SEARCH_LIMIT: Final = 20
 _MAX_CONTENT_INPUT_BYTES: Final = 524_288
 _DECIMAL_PATTERN: Final = re.compile(r"(?:0|-?[1-9][0-9]{0,18})\Z")
 _CONTENT_KEYS: Final = frozenset({"body", "tags", "title"})
+_JSON_WHITESPACE: Final = frozenset(" \t\r\n")
 _SUPPORTED_COMMANDS: Final = frozenset(
     {"create", "get", "head", "history", "revise", "search", "tombstone"}
 )
@@ -417,6 +418,23 @@ def _reject_json_constant(_value: str) -> object:
     raise ValueError
 
 
+def _has_top_level_array(text: str) -> bool:
+    """Classify an array root without descending into decoder-specific recursion."""
+
+    for character in text:
+        if character not in _JSON_WHITESPACE:
+            return character == "["
+    return False
+
+
+def _raise_content_root_shape() -> NoReturn:
+    raise _CliError(
+        exit_code=EXIT_INPUT,
+        code="INPUT_INVALID_SHAPE",
+        message="content JSON must contain exactly body, tags, and title",
+    )
+
+
 def _read_bounded_input(
     stream: BinaryIO,
     *,
@@ -575,18 +593,22 @@ def _read_content(path_text: str, stdin: BinaryIO) -> NoteContent:
             code="INPUT_DUPLICATE_KEY",
             message="the content JSON contains a duplicate object key",
         ) from None
-    except (json.JSONDecodeError, RecursionError, ValueError):
+    except RecursionError:
+        if _has_top_level_array(text):
+            _raise_content_root_shape()
+        raise _CliError(
+            exit_code=EXIT_INPUT,
+            code="INPUT_INVALID_JSON",
+            message="the content input is not strict JSON",
+        ) from None
+    except (json.JSONDecodeError, ValueError):
         raise _CliError(
             exit_code=EXIT_INPUT,
             code="INPUT_INVALID_JSON",
             message="the content input is not strict JSON",
         ) from None
     if type(value) is not dict or set(value) != _CONTENT_KEYS:
-        raise _CliError(
-            exit_code=EXIT_INPUT,
-            code="INPUT_INVALID_SHAPE",
-            message="content JSON must contain exactly body, tags, and title",
-        )
+        _raise_content_root_shape()
     content = cast(dict[str, object], value)
     title = content["title"]
     body = content["body"]

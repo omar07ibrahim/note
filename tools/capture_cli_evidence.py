@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import base64
 import binascii
+import copy
 import csv
 import hashlib
 import io
@@ -39,6 +40,14 @@ ARTIFACTS_DIRECTORY: Final = ROOT / "artifacts"
 EXPECTED_WHEEL_NAME: Final = "recall_ledger-0.1.0-py3-none-any.whl"
 EXPECTED_BUILD_VERSION: Final = "1.3.0"
 EXPECTED_SETUPTOOLS_VERSION: Final = "83.0.0"
+PORTABLE_RUNTIME_PROVENANCE_PATHS: Final = (
+    ("provenance", "builder", "python_version"),
+    ("provenance", "installation", "pip_version"),
+    ("provenance", "installation", "python_version"),
+    ("provenance", "installation", "sqlite_version"),
+)
+_PORTABLE_RUNTIME_SENTINEL: Final = "<PORTABLE_RUNTIME_PROVENANCE>"
+_PYTHON_SERIES_COMPONENTS: Final = 2
 EXPECTED_WHEEL_FILES: Final = frozenset(
     {
         "recall_ledger/__init__.py",
@@ -1567,6 +1576,62 @@ def _check_current_inputs(document: contract.JsonObject) -> None:
         _fail("current executable capture inputs differ from the recorded source")
 
 
+def _python_major_minor(version: str, *, context: str) -> tuple[int, int]:
+    components = version.split(".")
+    series = components[:_PYTHON_SERIES_COMPONENTS]
+    if len(series) < _PYTHON_SERIES_COMPONENTS or not all(
+        component.isdecimal() for component in series
+    ):
+        _fail(f"{context} is not a numeric Python major.minor version")
+    return int(series[0]), int(series[1])
+
+
+def _portable_python_series(document: contract.JsonObject, *, context: str) -> tuple[int, int]:
+    provenance = cast(contract.JsonObject, document["provenance"])
+    builder = cast(contract.JsonObject, provenance["builder"])
+    installation = cast(contract.JsonObject, provenance["installation"])
+    builder_python = cast(str, builder["python_version"])
+    installed_python = cast(str, installation["python_version"])
+    if builder_python != installed_python:
+        _fail(f"{context} builder and installed Python versions differ")
+    return _python_major_minor(builder_python, context=f"{context} Python version")
+
+
+def _mask_portable_runtime_provenance(
+    document: contract.JsonObject,
+) -> contract.JsonObject:
+    masked = copy.deepcopy(document)
+    for path in PORTABLE_RUNTIME_PROVENANCE_PATHS:
+        parent = masked
+        for component in path[:-1]:
+            child = parent.get(component)
+            if not isinstance(child, dict):
+                _fail("portable runtime provenance path is absent from validated evidence")
+            parent = child
+        leaf = path[-1]
+        if not isinstance(parent.get(leaf), str):
+            _fail("portable runtime provenance field is absent from validated evidence")
+        parent[leaf] = _PORTABLE_RUNTIME_SENTINEL
+    return masked
+
+
+def _check_portable_runtime_evidence(committed: bytes, recaptured: bytes) -> None:
+    committed_document = contract.decode_evidence_bytes(committed)
+    recaptured_document = contract.decode_evidence_bytes(recaptured)
+    committed_series = _portable_python_series(committed_document, context="committed evidence")
+    recaptured_series = _portable_python_series(recaptured_document, context="recaptured evidence")
+    if recaptured_series != committed_series:
+        _fail("portable runtime check requires the recorded Python major.minor series")
+    committed_comparable = contract.canonical_json_bytes(
+        _mask_portable_runtime_provenance(committed_document)
+    )
+    recaptured_comparable = contract.canonical_json_bytes(
+        _mask_portable_runtime_provenance(recaptured_document)
+    )
+    if recaptured_comparable != committed_comparable:
+        _fail("committed CLI evidence differs outside portable runtime provenance")
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Capture source-bound RecallLedger installed-wheel CLI evidence.",
@@ -1574,6 +1639,11 @@ def _parser() -> argparse.ArgumentParser:
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--write", action="store_true", help="write the canonical evidence JSON")
     mode.add_argument("--check", action="store_true", help="recapture and compare byte-for-byte")
+    mode.add_argument(
+        "--check-portable-runtime",
+        action="store_true",
+        help=("recapture and compare except the explicit runtime-version provenance allowlist"),
+    )
     parser.add_argument(
         "--source-commit",
         help="full committed Git object ID; required for --write",
@@ -1600,7 +1670,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         if arguments.source_commit is not None and arguments.source_commit != recorded_commit:
             _fail("--source-commit does not match the committed evidence provenance")
         actual = capture_evidence(ROOT, recorded_commit)
-        if actual != committed:
+        if arguments.check_portable_runtime:
+            _check_portable_runtime_evidence(committed, actual)
+        elif actual != committed:
             _fail("committed CLI evidence is not byte-for-byte current")
     except (CaptureError, contract.EvidenceContractError) as error:
         sys.stderr.write(f"error: {error}\n")

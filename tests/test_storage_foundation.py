@@ -970,8 +970,10 @@ def test_private_profile_helpers_fail_closed(monkeypatch: pytest.MonkeyPatch) ->
             return False
 
     monkeypatch.setattr(
-        "recall_ledger.storage.sqlite3.SQLITE_DBCONFIG_DEFENSIVE",
+        sqlite3,
+        "SQLITE_DBCONFIG_DEFENSIVE",
         999,
+        raising=False,
     )
     with pytest.raises(sqlite3.OperationalError):
         storage_module._configure_defensive_flags(RejectedConfig())  # type: ignore[arg-type]
@@ -1482,6 +1484,7 @@ def test_defensive_flag_fallback_and_wal_failure_paths(
     monkeypatch.delattr(
         sqlite3,
         "SQLITE_DBCONFIG_DEFENSIVE",
+        raising=False,
     )
     storage_module._configure_defensive_flags(connection)
     connection.close()

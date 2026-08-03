@@ -113,7 +113,7 @@ def test_workflow_runs_every_fail_closed_review_boundary() -> None:
         "python tools/lexical_eval_contract.py",
         "python tools/render_visuals.py --check",
         "python tools/render_cli_evidence.py --check",
-        "python tools/capture_cli_evidence.py --check",
+        "python tools/capture_cli_evidence.py --check-portable-runtime",
         "python -m pytest",
         'test -z "$(git status --porcelain=v1 --untracked-files=all)"',
     }
@@ -122,6 +122,7 @@ def test_workflow_runs_every_fail_closed_review_boundary() -> None:
     assert "if: matrix.python == '3.11'" in workflow
     assert "if: matrix.python == '3.12'" in workflow
     assert "cache-dependency-path: requirements-dev.lock" in workflow
+    assert "run: python tools/capture_cli_evidence.py --check\n" not in workflow
 
 
 def test_linux_matrix_toolchain_is_complete_and_hash_locked() -> None:
