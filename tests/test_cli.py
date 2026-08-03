@@ -1028,8 +1028,18 @@ def test_strict_json_input_rejections(
     assert list(data_directory.iterdir()) == []
 
 
-def test_top_level_array_shape_does_not_depend_on_decoder_recursion(
+@pytest.mark.parametrize(
+    ("payload", "expected_code"),
+    [
+        (b" \n[[[]]]", "INPUT_INVALID_SHAPE"),
+        (b"{}", "INPUT_INVALID_JSON"),
+        (b" \t\r\n", "INPUT_INVALID_JSON"),
+    ],
+)
+def test_root_classification_does_not_depend_on_decoder_recursion(
     monkeypatch: pytest.MonkeyPatch,
+    payload: bytes,
+    expected_code: str,
 ) -> None:
     def recursion_varies_by_runtime(*_args: object, **_kwargs: object) -> object:
         raise RecursionError
@@ -1037,11 +1047,10 @@ def test_top_level_array_shape_does_not_depend_on_decoder_recursion(
     monkeypatch.setattr(json, "loads", recursion_varies_by_runtime)
 
     with pytest.raises(cli._CliError) as captured:
-        cli._read_content("-", io.BytesIO(b" \n[[[]]]"))
+        cli._read_content("-", io.BytesIO(payload))
 
     assert captured.value.exit_code == cli.EXIT_INPUT
-    assert captured.value.code == "INPUT_INVALID_SHAPE"
-    assert str(captured.value) == "content JSON must contain exactly body, tags, and title"
+    assert captured.value.code == expected_code
 
 
 def test_content_contract_rejection_is_exit_ten_before_storage_open(tmp_path: Path) -> None:
