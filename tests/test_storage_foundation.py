@@ -958,25 +958,54 @@ def test_private_profile_helpers_fail_closed(monkeypatch: pytest.MonkeyPatch) ->
     storage_module._configure_defensive_flags(MissingConfig())  # type: ignore[arg-type]
     assert storage_module._synchronous_name(99) == "UNKNOWN"
 
-    class RejectedConfig:
+    flags = (
+        ("SQLITE_DBCONFIG_DEFENSIVE", True),
+        ("SQLITE_DBCONFIG_TRUSTED_SCHEMA", False),
+        ("SQLITE_DBCONFIG_DQS_DDL", False),
+        ("SQLITE_DBCONFIG_DQS_DML", False),
+        ("SQLITE_DBCONFIG_ENABLE_LOAD_EXTENSION", False),
+        ("SQLITE_DBCONFIG_WRITABLE_SCHEMA", False),
+        ("SQLITE_DBCONFIG_ENABLE_TRIGGER", False),
+        ("SQLITE_DBCONFIG_ENABLE_VIEW", False),
+    )
+
+    class RecordingConfig:
+        def __init__(self, rejected_operation: int | None = None) -> None:
+            self.values: dict[int, bool] = {}
+            self.rejected_operation = rejected_operation
+
         def setconfig(
             self,
-            _operation: int,
-            _enabled: bool,  # noqa: FBT001 - mirrors sqlite3's positional API
+            operation: int,
+            enabled: bool,  # noqa: FBT001 - mirrors sqlite3's positional API
         ) -> None:
-            pass
+            self.values[operation] = enabled
 
-        def getconfig(self, _operation: int) -> bool:
-            return False
+        def getconfig(self, operation: int) -> bool:
+            retained = self.values[operation]
+            return not retained if operation == self.rejected_operation else retained
 
-    monkeypatch.setattr(
-        sqlite3,
-        "SQLITE_DBCONFIG_DEFENSIVE",
-        999,
-        raising=False,
-    )
-    with pytest.raises(sqlite3.OperationalError):
-        storage_module._configure_defensive_flags(RejectedConfig())  # type: ignore[arg-type]
+    with monkeypatch.context() as sqlite_without_flags:
+        for name, _enabled in flags:
+            sqlite_without_flags.delattr(sqlite3, name, raising=False)
+        unavailable = RecordingConfig()
+        storage_module._configure_defensive_flags(unavailable)  # type: ignore[arg-type]
+        assert unavailable.values == {}
+
+    operations = {name: 9000 + index for index, (name, _enabled) in enumerate(flags)}
+    with monkeypatch.context() as sqlite_with_flags:
+        for name, operation in operations.items():
+            sqlite_with_flags.setattr(sqlite3, name, operation, raising=False)
+
+        accepted = RecordingConfig()
+        storage_module._configure_defensive_flags(accepted)  # type: ignore[arg-type]
+        assert accepted.values == {operations[name]: enabled for name, enabled in flags}
+
+        rejected_operation = operations[flags[-1][0]]
+        with pytest.raises(sqlite3.OperationalError):
+            storage_module._configure_defensive_flags(
+                cast(sqlite3.Connection, RecordingConfig(rejected_operation)),
+            )
 
 
 def test_close_failure_retains_resources_until_retry(
