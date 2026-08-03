@@ -46,6 +46,7 @@ EXPECTED_WHEEL_FILES: Final = frozenset(
         "recall_ledger/cli.py",
         "recall_ledger/events.py",
         "recall_ledger/py.typed",
+        "recall_ledger/retrieval.py",
         "recall_ledger/storage.py",
         "recall_ledger-0.1.0.dist-info/METADATA",
         "recall_ledger-0.1.0.dist-info/RECORD",
@@ -62,6 +63,7 @@ EXPECTED_PACKAGE_FILES: Final = frozenset(
         "cli.py",
         "events.py",
         "py.typed",
+        "retrieval.py",
         "storage.py",
     }
 )

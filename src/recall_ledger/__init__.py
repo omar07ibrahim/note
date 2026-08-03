@@ -14,6 +14,15 @@ from .events import (
     new_note_id,
     new_tenant_id,
 )
+from .retrieval import (
+    LexicalQuery,
+    LexicalScore,
+    LexicalTokenStreams,
+    RetrievalContractError,
+    compile_lexical_query,
+    lexical_token_streams,
+    score_lexical_content,
+)
 from .storage import (
     HistoryPage,
     LedgerStorageError,
@@ -29,15 +38,22 @@ __all__ = [
     "HistoryPage",
     "LedgerEvent",
     "LedgerStorageError",
+    "LexicalQuery",
+    "LexicalScore",
+    "LexicalTokenStreams",
     "NoteContent",
     "NoteId",
+    "RetrievalContractError",
     "SQLiteLedger",
     "StorageStatus",
     "TenantId",
     "TombstoneReason",
     "TransitionResult",
+    "compile_lexical_query",
     "decode_event",
+    "lexical_token_streams",
     "new_command_id",
     "new_note_id",
     "new_tenant_id",
+    "score_lexical_content",
 ]

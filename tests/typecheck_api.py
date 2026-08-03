@@ -7,6 +7,9 @@ from recall_ledger import (
     HistoryPage,
     LedgerEvent,
     LedgerStorageError,
+    LexicalQuery,
+    LexicalScore,
+    LexicalTokenStreams,
     NoteContent,
     NoteId,
     SQLiteLedger,
@@ -14,7 +17,10 @@ from recall_ledger import (
     TenantId,
     TombstoneReason,
     TransitionResult,
+    compile_lexical_query,
     decode_event,
+    lexical_token_streams,
+    score_lexical_content,
 )
 
 event = LedgerEvent.create(
@@ -28,6 +34,11 @@ event = LedgerEvent.create(
 assert_type(event, LedgerEvent)
 assert_type(event.to_bytes(), bytes)
 assert_type(decode_event(event.to_bytes()), LedgerEvent)
+assert event.content is not None
+query = compile_lexical_query("stored title")
+assert_type(query, LexicalQuery)
+assert_type(lexical_token_streams(event.content), LexicalTokenStreams)
+assert_type(score_lexical_content(query, event.content), LexicalScore | None)
 
 
 def check_storage_api(data_directory: str) -> None:
