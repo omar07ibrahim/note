@@ -5,6 +5,7 @@ import json
 import os
 import subprocess
 import sys
+from argparse import Namespace
 from collections.abc import Callable
 from pathlib import Path
 from types import SimpleNamespace
@@ -942,7 +943,7 @@ def test_execute_rejects_an_injected_command_outside_the_parser_allowlist(
     tmp_path: Path,
 ) -> None:
     data_directory = secure_directory(tmp_path)
-    namespace = SimpleNamespace(
+    namespace = Namespace(
         command="private-command",
         data_dir=str(data_directory),
         tenant_id=TENANT_A,
