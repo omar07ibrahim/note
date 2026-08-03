@@ -582,8 +582,8 @@
       "binding": "scope-boundary",
       "label": "Implemented scope",
       "text": [
-        "No tenant authentication, search, or model integration is implemented.",
-        "One local operator invocation is shown; no server or background worker."
+        "Installed CLI: no authentication, search command, or model integration.",
+        "Reference search is library-only; no server or background worker."
       ],
       "x": 55,
       "y": 850,

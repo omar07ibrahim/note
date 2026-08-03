@@ -8,12 +8,13 @@ measured hybrid retrieval.
 
 It is not currently a Telegram bot or a generic CRUD application.
 
-> **Phase 2c — installed operator CLI.** The current tree combines bounded,
+> **Phase 3a — bounded lexical reference search.** The current tree combines bounded,
 > canonical, tenant-scoped note events with a versioned, locked SQLite
 > boundary, transactional create/revise/tombstone/head/history operations, and
-> an installed `recall-ledger` console script with canonical JSON/JSONL output
-> and stable exit categories. No authorization adapter, search API, model
-> integration, benchmark, or user interface is claimed yet.
+> a deterministic tenant-local search oracle over every verified current head.
+> The installed `recall-ledger` console script still covers the mutation/read
+> workflow only. No authorization adapter, persistent retrieval index, search
+> CLI, model integration, benchmark, or user interface is claimed yet.
 
 The storage slice currently supports Linux/POSIX deployments only. Its
 `fcntl`, `flock`, `O_DIRECTORY`, `O_NOFOLLOW`, and fork-safety contract is
@@ -39,9 +40,9 @@ Development will proceed in reviewable layers:
 1. **Tenant-isolated event log** — versioned note events, immutable ownership,
    optimistic concurrency, deterministic projections, SQLite migrations, and
    tests proving that cross-tenant reads and writes fail closed.
-2. **Rebuildable retrieval** — source-bound FTS5 indexes, explicit tokenization
-   and normalization contracts, stable ranking evidence, and full index
-   reconstruction from the event log.
+2. **Rebuildable retrieval** — the normalization, tokenization, exact scoring,
+   bounded reference scan, and citation contracts are implemented first;
+   source-bound FTS5 acceleration and full index reconstruction come next.
 3. **Hybrid search laboratory** — a provider boundary for optional local
    embeddings, reciprocal-rank fusion, diversity controls, and frozen
    lexical/semantic/adversarial evaluation slices. The dependency-free lexical
@@ -86,6 +87,22 @@ the head before commit. Exact retries return the original event; reuse of a
 command for a different intent fails closed. Head and history reads decode the
 canonical event BLOB and reconcile every duplicated relational field.
 
+`recall_ledger.retrieval` defines a profile-bound `NFKC → casefold → NFKC`
+lexical contract, inert UTF-8-hex candidate tokens, all-terms matching, and an
+integer scorer with reviewable field-frequency and phrase components. Public
+derived values cannot be constructed or restored from serialized state, and
+every consumer revalidates hostile low-level mutation.
+
+`SQLiteLedger.search_notes` is the correctness oracle for future indexes. It
+compiles raw query text inside the boundary, then verifies every tenant head
+and the distinct event-note inventory in one read snapshot. The scan includes
+tombstones and off-query heads for integrity, caps the complete inventory at
+1,000 heads and live UTF-8 content at 16 MiB, and returns no prefix on overflow
+or corruption. Only decoded live heads are scored. Hits sort by integer score,
+current-head time, and note ID; each carries the current revision and event
+hash as a citation. The result also exposes exact scanned-head, live-note, and
+content-byte counts. This reference path intentionally has no FTS5 table yet.
+
 ```mermaid
 flowchart LR
     A[Validated tenant command] --> B[BEGIN IMMEDIATE]
@@ -110,7 +127,7 @@ document per invocation. History can instead emit canonical JSONL. Mutations
 surface exact command replay, revision conflicts, busy/uncertain settlement,
 storage-safety failures, and output-delivery failures through documented exit
 categories and retry guidance. The CLI does not authenticate the supplied
-tenant identifier.
+tenant identifier and does not yet expose the library search API.
 
 The exact guarantees, deployment preconditions, failure states, and non-claims
 are in the [SQLite storage boundary](docs/storage-boundary.md) and

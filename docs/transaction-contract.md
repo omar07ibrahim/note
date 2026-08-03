@@ -1,13 +1,13 @@
 # Atomic transaction contract v1
 
-This document describes the implemented Phase 2b mutation and read boundary.
+This document describes the implemented mutation and read boundary.
 It is narrower than an application authorization layer: `tenant_id` must
 already have been resolved by trusted caller context. Opaque identifiers are
 not credentials.
 
 ## Public operations
 
-`SQLiteLedger` exposes six domain operations:
+`SQLiteLedger` exposes seven domain operations:
 
 ```python
 create_note(tenant_id, command_id, content) -> TransitionResult
@@ -19,6 +19,7 @@ get_note(tenant_id, note_id) -> LedgerEvent | None
 get_head(tenant_id, note_id) -> LedgerEvent | None
 read_history(tenant_id, note_id, after_revision=0, limit=50)
     -> HistoryPage | None
+search_notes(tenant_id, query, limit=20) -> SearchResults
 ```
 
 Arguments are keyword-only. Creation deliberately accepts neither a note ID nor
@@ -142,6 +143,15 @@ History is a privileged storage surface because it includes content retained
 before a tombstone. A future adapter must authorize it separately from
 `get_note`.
 
+`search_notes` compiles exact raw query text before opening one deferred read
+transaction. It verifies the complete bounded tenant head inventory and the
+distinct event-note inventory in that same snapshot, including tombstoned and
+off-query notes. It then scores every decoded live head and applies the result
+limit only after deterministic ordering. The full algorithm, 1,000-head and
+16-MiB bounds, citations, and future-index obligations are documented in the
+[storage boundary](storage-boundary.md). Search returns no partial prefix when
+capacity, retrieval, or integrity verification fails.
+
 ## Failure-state protocol
 
 SQLite's low-level autocommit state is checked before `BEGIN`, after rollback,
@@ -161,7 +171,7 @@ and after `COMMIT`.
   transaction has an unknown durable outcome and poisons the connection. A
   write `COMMIT` that returns while a transaction still appears active is also
   outcome-unknown.
-- A history transaction is read-only. If its interrupted `COMMIT` is followed
+- A history or search transaction is read-only. If its interrupted `COMMIT` is followed
   by proof of a clean inactive state, the original exception propagates and
   the connection remains reusable; an unprovable or contradictory state still
   poisons it.
@@ -228,6 +238,7 @@ Storage input and domain outcomes include:
 INVALID_EXPECTED_REVISION
 INVALID_HISTORY_CURSOR
 INVALID_HISTORY_LIMIT
+INVALID_SEARCH_LIMIT
 CLOCK_UNAVAILABLE
 CLOCK_OUT_OF_RANGE
 ID_GENERATION_FAILED
@@ -236,6 +247,8 @@ NOTE_NOT_FOUND
 NOTE_TOMBSTONED
 REVISION_CONFLICT
 IDEMPOTENCY_CONFLICT
+SEARCH_INVENTORY_TOO_LARGE
+SEARCH_CORPUS_TOO_LARGE
 ```
 
 Storage/failure outcomes include:

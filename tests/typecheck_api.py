@@ -12,6 +12,9 @@ from recall_ledger import (
     LexicalTokenStreams,
     NoteContent,
     NoteId,
+    SearchCitation,
+    SearchHit,
+    SearchResults,
     SQLiteLedger,
     StorageStatus,
     TenantId,
@@ -57,6 +60,14 @@ def check_storage_api(data_directory: str) -> None:
     assert_type(created, TransitionResult)
     assert_type(created.event, LedgerEvent)
     assert_type(created.replayed, bool)
+    results = ledger.search_notes(
+        tenant_id=created.event.tenant_id,
+        query="stored title",
+    )
+    assert_type(results, SearchResults)
+    assert_type(results.hits, tuple[SearchHit, ...])
+    if results.hits:
+        assert_type(results.hits[0].citation, SearchCitation)
     revised = ledger.revise_note(
         tenant_id=created.event.tenant_id,
         note_id=created.event.note_id,

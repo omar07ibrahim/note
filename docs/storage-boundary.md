@@ -2,8 +2,9 @@
 
 RecallLedger's durable-storage boundary defines how a local SQLite database is
 identified, migrated, opened, checked, and updated through atomic note
-transitions. It exposes tenant-scoped head and history reads, but no retrieval
-index, search, projection-rebuild, CLI, or authorization adapter.
+transitions. It exposes tenant-scoped head/history reads and a bounded lexical
+reference search, but no persistent retrieval index, projection rebuild,
+search CLI, or authorization adapter.
 
 This module currently supports Linux/POSIX only. It depends on `fcntl`,
 `flock`, `O_DIRECTORY`, `O_NOFOLLOW`, and `register_at_fork`; Windows is not a
@@ -100,6 +101,47 @@ the original event even after the head advances. Direct SQL by a process that
 ignores the API remains outside the invariant boundary; rows are
 append-only-intended, not protected from the database owner by SQLite
 permissions.
+
+## Bounded reference search
+
+`SQLiteLedger.search_notes` is a dependency-free correctness oracle, not an
+index. It accepts exact raw query text, compiles the versioned Unicode profile
+inside the storage API, and opens one deferred read transaction. Within that
+single snapshot it:
+
+1. enumerates every tenant head, including tombstones, through
+   `note_heads_all_page` with a 1,001-row sentinel query;
+2. walks distinct tenant event note IDs with bounded keyset seeks over the
+   event primary-key prefix and rejects events without a head;
+3. loads every inventoried head through the canonical latest-head verifier;
+4. excludes a tombstone only after the decoded event and duplicated head flag
+   agree;
+5. accounts for exact UTF-8 bytes of every live title, body, and tag;
+6. applies the deterministic integer scorer to every live head; and
+7. sorts matches by score descending, current-head time descending, then note
+   ID ascending before applying the caller's top-K limit.
+
+The reference scan is capped at 1,000 total heads and 16 MiB of aggregate live
+content. Those caps and retrieval normalization/token-stream bounds fail the
+whole operation; no partial prefix is returned. Results expose the normalized
+query profile, total matches, scan accounting, score breakdown, exact content,
+and a citation containing tenant ID, note ID, current revision, and current
+event hash. A citation is a consistency reference, not a signature or an
+authorization receipt.
+
+Only current heads are searched. Earlier revisions remain available through
+privileged history but cannot contribute stale terms; a terminal tombstone
+hides the note from search without erasing retained events. Another tenant's
+heads, history volume, terms, or scores do not enter the scan and cannot alter
+ranking. Current-head reconciliation is not a full replay of every retained
+chain. The orphan keyset proof performs at most one indexed seek per distinct
+event note plus a terminal seek, rather than scanning every revision.
+
+A future FTS5 projection may reduce candidate work, but it must persist the
+lexical contract version and Unicode profile, rebuild or fail closed on a
+profile mismatch, and pass every candidate through this exact scorer. It must
+remain observationally identical to the reference engine for hits, scores,
+ordering, revision replacement, tombstones, and tenant-stuffing invariance.
 
 ## Connection profile
 

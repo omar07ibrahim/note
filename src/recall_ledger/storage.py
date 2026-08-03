@@ -38,6 +38,7 @@ from .events import (
     TenantId,
     TombstoneReason,
 )
+from .retrieval import LexicalQuery, LexicalScore, compile_lexical_query
 
 DATABASE_FILENAME: Final = "recall-ledger.sqlite3"
 LOCK_FILENAME: Final = ".recall-ledger.lock"
@@ -48,6 +49,10 @@ DEFAULT_BUSY_TIMEOUT_MS: Final = 5_000
 MAX_BUSY_TIMEOUT_MS: Final = 60_000
 DEFAULT_PAGE_SIZE: Final = 50
 MAX_PAGE_SIZE: Final = 100
+DEFAULT_SEARCH_LIMIT: Final = 20
+MAX_SEARCH_LIMIT: Final = 100
+MAX_SEARCH_HEADS: Final = 1_000
+MAX_SEARCH_LIVE_CONTENT_BYTES: Final = 16 * 1_024 * 1_024
 _DIRECTORY_MODE: Final = 0o700
 _FILE_MODE: Final = 0o600
 _SQLITE_SYNCHRONOUS_FULL: Final = 2
@@ -124,6 +129,40 @@ class HistoryPage:
     note_id: NoteId
     events: tuple[LedgerEvent, ...]
     next_after_revision: int | None
+
+
+@dataclass(frozen=True, slots=True)
+class SearchCitation:
+    """The exact current event identity supporting one search hit."""
+
+    tenant_id: TenantId
+    note_id: NoteId
+    revision: int
+    event_hash: str
+
+
+@dataclass(frozen=True, slots=True)
+class SearchHit:
+    """One live note with an explainable deterministic lexical score."""
+
+    citation: SearchCitation
+    recorded_at_us: int
+    content: NoteContent
+    score: LexicalScore
+
+
+@dataclass(frozen=True, slots=True)
+class SearchResults:
+    """A fully verified bounded-corpus search result, never a partial scan."""
+
+    tenant_id: TenantId
+    query: LexicalQuery
+    limit: int
+    total_matches: int
+    scanned_heads: int
+    scanned_live_notes: int
+    scanned_content_bytes: int
+    hits: tuple[SearchHit, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -624,6 +663,53 @@ class SQLiteLedger:
                     "the history snapshot did not end in a clean state",
                 )
             return page  # noqa: TRY300 - result delivery is part of the guard
+        except BaseException as error:
+            poison_was_preexisting = self._poisoned
+            self._poisoned = True
+            replacement = self._settle_transaction_failure(
+                connection,
+                error,
+                phase=None,
+                poison_was_preexisting=poison_was_preexisting,
+            )
+            if replacement is not None:
+                raise replacement from None
+            raise
+
+    def search_notes(
+        self,
+        *,
+        tenant_id: TenantId,
+        query: str,
+        limit: int = DEFAULT_SEARCH_LIMIT,
+    ) -> SearchResults:
+        """Search every verified live tenant head in one bounded snapshot."""
+
+        connection = self._ready_connection()
+        from . import _ledger_operations as operations  # noqa: PLC0415
+
+        operations._validate_tenant(tenant_id)
+        result_limit = operations._validate_search_limit(limit)
+        compiled_query = compile_lexical_query(query)
+        self._assert_schema_cookie(connection)
+        try:
+            self._begin_transaction(connection, immediate=False)
+            self._assert_schema_cookie(connection)
+            results = operations._search_in_transaction(
+                connection,
+                tenant_id=tenant_id,
+                query=compiled_query,
+                limit=result_limit,
+            )
+            self._assert_schema_cookie(connection)
+            connection.execute("COMMIT")
+            if _transaction_active(connection):
+                self._poisoned = True
+                raise LedgerStorageError(  # noqa: TRY301 - terminal proof stays guarded
+                    "TRANSACTION_STATE_UNCERTAIN",
+                    "the search snapshot did not end in a clean state",
+                )
+            return results  # noqa: TRY300 - result delivery is part of the guard
         except BaseException as error:
             poison_was_preexisting = self._poisoned
             self._poisoned = True

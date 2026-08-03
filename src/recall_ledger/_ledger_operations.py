@@ -24,10 +24,17 @@ from .events import (
     decode_event,
     new_note_id,
 )
+from .retrieval import LexicalQuery, score_lexical_content
 from .storage import (
     MAX_PAGE_SIZE,
+    MAX_SEARCH_HEADS,
+    MAX_SEARCH_LIMIT,
+    MAX_SEARCH_LIVE_CONTENT_BYTES,
     HistoryPage,
     LedgerStorageError,
+    SearchCitation,
+    SearchHit,
+    SearchResults,
     TransitionResult,
     _TransitionIntent,
 )
@@ -122,6 +129,33 @@ _LOAD_HISTORY_SQL: Final = _sql(
     LIMIT ?
     """  # noqa: S608 - interpolated fragments are fixed module constants
 )
+_LOAD_TENANT_HEAD_IDS_SQL: Final = _sql(
+    """
+    SELECT note_id
+    FROM note_heads INDEXED BY note_heads_all_page
+    WHERE tenant_id = ?
+    ORDER BY updated_at_us DESC, note_id ASC
+    LIMIT ?
+    """
+)
+_LOAD_FIRST_TENANT_EVENT_NOTE_ID_SQL: Final = _sql(
+    """
+    SELECT note_id
+    FROM ledger_events
+    WHERE tenant_id = ?
+    ORDER BY note_id ASC
+    LIMIT 1
+    """
+)
+_LOAD_NEXT_TENANT_EVENT_NOTE_ID_SQL: Final = _sql(
+    """
+    SELECT note_id
+    FROM ledger_events
+    WHERE tenant_id = ? AND note_id > ?
+    ORDER BY note_id ASC
+    LIMIT 1
+    """
+)
 
 
 def _create_intent(
@@ -202,8 +236,12 @@ def _validate_transition_identity(
 
 
 def _validate_tenant_note(tenant_id: TenantId, note_id: NoteId) -> None:
-    _validate_identifier(tenant_id, "tenant_id")
+    _validate_tenant(tenant_id)
     _validate_identifier(note_id, "note_id")
+
+
+def _validate_tenant(tenant_id: TenantId) -> None:
+    _validate_identifier(tenant_id, "tenant_id")
 
 
 def _validate_expected_revision(value: object) -> int:
@@ -229,6 +267,15 @@ def _validate_history_limit(value: object) -> int:
         raise LedgerStorageError(
             "INVALID_HISTORY_LIMIT",
             "history limit must be an exact integer in the supported range",
+        )
+    return value
+
+
+def _validate_search_limit(value: object) -> int:
+    if type(value) is not int or not 1 <= value <= MAX_SEARCH_LIMIT:
+        raise LedgerStorageError(
+            "INVALID_SEARCH_LIMIT",
+            "search limit must be an exact integer in the supported range",
         )
     return value
 
@@ -709,6 +756,152 @@ def _history_in_transaction(
         events=events,
         next_after_revision=events[-1].revision if has_more and events else None,
     )
+
+
+def _search_in_transaction(
+    connection: sqlite3.Connection,
+    *,
+    tenant_id: TenantId,
+    query: LexicalQuery,
+    limit: int,
+) -> SearchResults:
+    note_ids = _load_search_note_ids(connection, tenant_id)
+    _verify_search_event_inventory(connection, tenant_id, frozenset(note_ids))
+
+    hits: list[SearchHit] = []
+    live_notes = 0
+    content_bytes = 0
+    for note_id in note_ids:
+        event = _load_head(connection, tenant_id, note_id)
+        if event is None:
+            raise LedgerStorageError(
+                "DATABASE_INTEGRITY",
+                "an inventoried note head disappeared from the search snapshot",
+            )
+        if event.kind is EventKind.TOMBSTONED:
+            continue
+        if type(event.content) is not NoteContent:
+            raise LedgerStorageError(
+                "DATABASE_INTEGRITY",
+                "a live note head does not contain canonical note content",
+            )
+        title, body, tags = _validated_content_values(event.content)
+        content_bytes += len(title.encode("utf-8")) + len(body.encode("utf-8"))
+        content_bytes += sum(len(tag.encode("utf-8")) for tag in tags)
+        if content_bytes > MAX_SEARCH_LIVE_CONTENT_BYTES:
+            raise LedgerStorageError(
+                "SEARCH_CORPUS_TOO_LARGE",
+                "the live tenant corpus exceeds the reference search byte bound",
+            )
+        live_notes += 1
+        score = score_lexical_content(query, event.content)
+        if score is None:
+            continue
+        hits.append(
+            SearchHit(
+                citation=SearchCitation(
+                    tenant_id=event.tenant_id,
+                    note_id=event.note_id,
+                    revision=event.revision,
+                    event_hash=event.event_hash,
+                ),
+                recorded_at_us=event.recorded_at_us,
+                content=event.content,
+                score=score,
+            )
+        )
+
+    hits.sort(
+        key=lambda hit: (
+            -hit.score.total,
+            -hit.recorded_at_us,
+            hit.citation.note_id,
+        )
+    )
+    return SearchResults(
+        tenant_id=tenant_id,
+        query=query,
+        limit=limit,
+        total_matches=len(hits),
+        scanned_heads=len(note_ids),
+        scanned_live_notes=live_notes,
+        scanned_content_bytes=content_bytes,
+        hits=tuple(hits[:limit]),
+    )
+
+
+def _load_search_note_ids(
+    connection: sqlite3.Connection,
+    tenant_id: TenantId,
+) -> tuple[NoteId, ...]:
+    inventory_rows = connection.execute(
+        _LOAD_TENANT_HEAD_IDS_SQL,
+        (tenant_id, MAX_SEARCH_HEADS + 1),
+    ).fetchall()
+    if len(inventory_rows) > MAX_SEARCH_HEADS:
+        raise LedgerStorageError(
+            "SEARCH_INVENTORY_TOO_LARGE",
+            "the tenant note inventory exceeds the reference search bound",
+        )
+
+    note_ids: list[NoteId] = []
+    seen: set[NoteId] = set()
+    for row in inventory_rows:
+        value = row["note_id"]
+        try:
+            _validate_identifier(value, "note_id")
+        except ContractViolation:
+            raise LedgerStorageError(
+                "DATABASE_INTEGRITY",
+                "the tenant note inventory contains an invalid identity",
+            ) from None
+        note_id = NoteId(value)
+        if note_id in seen:
+            raise LedgerStorageError(
+                "DATABASE_INTEGRITY",
+                "the tenant note inventory contains a duplicate identity",
+            )
+        seen.add(note_id)
+        note_ids.append(note_id)
+    return tuple(note_ids)
+
+
+def _verify_search_event_inventory(
+    connection: sqlite3.Connection,
+    tenant_id: TenantId,
+    head_note_ids: frozenset[NoteId],
+) -> None:
+    event_note_cursor: str | None = None
+    while True:
+        if event_note_cursor is None:
+            event_note_row = connection.execute(
+                _LOAD_FIRST_TENANT_EVENT_NOTE_ID_SQL,
+                (tenant_id,),
+            ).fetchone()
+        else:
+            event_note_row = connection.execute(
+                _LOAD_NEXT_TENANT_EVENT_NOTE_ID_SQL,
+                (tenant_id, event_note_cursor),
+            ).fetchone()
+        if event_note_row is None:
+            break
+        event_note_value = event_note_row["note_id"]
+        try:
+            _validate_identifier(event_note_value, "note_id")
+        except ContractViolation:
+            raise LedgerStorageError(
+                "DATABASE_INTEGRITY",
+                "the tenant event inventory contains an invalid identity",
+            ) from None
+        event_note_id = NoteId(event_note_value)
+        if (
+            event_note_cursor is not None and event_note_value <= event_note_cursor
+        ) or event_note_id not in head_note_ids:
+            raise LedgerStorageError(
+                "DATABASE_INTEGRITY",
+                "tenant ledger events exist outside the note head inventory",
+            )
+        event_note_cursor = event_note_value
 
 
 def _verify_event_sequence(events: tuple[LedgerEvent, ...]) -> None:

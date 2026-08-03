@@ -190,8 +190,8 @@
   <g class="note node-accent" id="scope-note" data-binding="scope-boundary">
     <rect x="55" y="850" width="710" height="95" rx="16"/>
     <text class="note-title" x="75" y="880">Implemented scope</text>
-    <text class="note-detail" x="75" y="906">No tenant authentication, search, or model integration is implemented.</text>
-    <text class="note-detail" x="75" y="926">One local operator invocation is shown; no server or background worker.</text>
+    <text class="note-detail" x="75" y="906">Installed CLI: no authentication, search command, or model integration.</text>
+    <text class="note-detail" x="75" y="926">Reference search is library-only; no server or background worker.</text>
   </g>
   <g class="note node-neutral" id="deletion-note" data-binding="logical-deletion">
     <rect x="835" y="850" width="710" height="95" rx="16"/>
