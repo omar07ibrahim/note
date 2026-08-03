@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" data-entry="caller-context" role="img" aria-labelledby="architecture-workflow-title architecture-workflow-description">
   <title id="architecture-workflow-title">RecallLedger implemented architecture</title>
-  <desc id="architecture-workflow-description">Source-derived architecture of the installed RecallLedger CLI, its bounded input and lifecycle dispatcher, tenant-scoped SQLiteLedger API, atomic transition coordinator, canonical event contract, verified reads, durable event log and head projection, and JSON or JSONL output. Tenant identity is trusted caller context, not authentication. Search, model integration, and a network service are not represented.</desc>
+  <desc id="architecture-workflow-description">Source-derived architecture of the installed RecallLedger CLI, its bounded content and query input, lifecycle dispatcher, tenant-scoped SQLiteLedger API, atomic transition coordinator, canonical event contract, verified reads and reference search, durable event log and head projection, and JSON or JSONL output. Tenant identity is trusted caller context, not authentication. A persistent search index, model integration, and a network service are not represented.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#35516f"/>
@@ -74,20 +74,20 @@
     <rect x="345" y="210" width="240" height="130" rx="16"/>
     <text class="node-title" x="367" y="244">Bounded input</text>
     <text class="node-detail" x="367" y="272">no argv abbreviations</text>
-    <text class="node-detail" x="367" y="293">strict UTF-8 JSON</text>
+    <text class="node-detail" x="367" y="293">strict UTF-8 input</text>
     <text class="node-detail" x="367" y="314">closed content shape</text>
   </g>
   <g class="node node-primary" id="command-dispatch" data-binding="dispatch">
     <rect x="345" y="390" width="240" height="130" rx="16"/>
     <text class="node-title" x="367" y="424">Dispatch</text>
     <text class="node-detail" x="367" y="452">write commands</text>
-    <text class="node-detail" x="367" y="473">get · head · history</text>
+    <text class="node-detail" x="367" y="473">reads + search</text>
     <text class="node-detail" x="367" y="494">open → execute → close</text>
   </g>
   <g class="node node-output" id="machine-json-output" data-binding="machine-output">
     <rect x="345" y="620" width="240" height="130" rx="16"/>
     <text class="node-title" x="367" y="654">Machine output</text>
-    <text class="node-detail" x="367" y="682">JSON or history JSONL</text>
+    <text class="node-detail" x="367" y="682">JSON or ranked JSONL</text>
     <text class="node-detail" x="367" y="703">stdout or stderr JSON</text>
     <text class="node-detail" x="367" y="724">stable exit categories</text>
   </g>
@@ -117,7 +117,7 @@
     <text class="node-title" x="922" y="634">Verified reads</text>
     <text class="node-detail" x="922" y="662">decode event bytes</text>
     <text class="node-detail" x="922" y="683">check row + head</text>
-    <text class="node-detail" x="922" y="704">history page proof</text>
+    <text class="node-detail" x="922" y="704">search + history</text>
   </g>
   <g class="node node-storage" id="event-log" data-binding="event-schema">
     <rect x="1240" y="410" width="280" height="150" rx="16"/>
@@ -190,8 +190,8 @@
   <g class="note node-accent" id="scope-note" data-binding="scope-boundary">
     <rect x="55" y="850" width="710" height="95" rx="16"/>
     <text class="note-title" x="75" y="880">Implemented scope</text>
-    <text class="note-detail" x="75" y="906">Installed CLI: no authentication, search command, or model integration.</text>
-    <text class="note-detail" x="75" y="926">Reference search is library-only; no server or background worker.</text>
+    <text class="note-detail" x="75" y="906">CLI: bounded lexical search; no tenant auth or model integration.</text>
+    <text class="note-detail" x="75" y="926">No persistent index, server, or background worker is implemented.</text>
   </g>
   <g class="note node-neutral" id="deletion-note" data-binding="logical-deletion">
     <rect x="835" y="850" width="710" height="95" rx="16"/>

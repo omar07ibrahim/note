@@ -98,9 +98,9 @@ erasure.
 
 ## Stored-row reconciliation
 
-Every event involved in a replay, head read, mutation, or history page is
-decoded from `event_bytes` through the canonical event decoder. Storage then
-compares the decoded value with all duplicated columns:
+Every event involved in a replay, head read, mutation, history page, or
+reference search is decoded from `event_bytes` through the canonical event
+decoder. Storage then compares the decoded value with all duplicated columns:
 
 - tenant ID;
 - note ID;
@@ -152,6 +152,20 @@ limit only after deterministic ordering. The full algorithm, 1,000-head and
 [storage boundary](storage-boundary.md). Search returns no partial prefix when
 capacity, retrieval, or integrity verification fails.
 
+The installed CLI accepts search text only through `--query-file PATH|-`; it
+does not place the query in argv, does not trim it, rejects symlinks and
+non-regular files, and reads at most 1,024 strict UTF-8 bytes. JSON exposes the
+complete compiled query contract, ranked hit content, score breakdowns,
+current revision/hash citations, scan counters, and whether top-K truncated
+the complete match set. JSONL emits zero or more hit records and exactly one
+summary record. `--pretty` and `--jsonl` are mutually exclusive.
+Unsafe, unavailable, oversized, or non-UTF-8 query input exits as input error
+3. Query semantics and limit violations exit as request error 10; stored
+content retrieval bounds and complete-corpus capacity bounds exit as storage
+error 15. JSON and JSONL are fully serialized only after the ledger closes.
+If output fails after a prefix, consumers must discard that prefix; retrying
+the same read invocation opens a new snapshot and may legitimately differ.
+
 ## Failure-state protocol
 
 SQLite's low-level autocommit state is checked before `BEGIN`, after rollback,
@@ -171,10 +185,10 @@ and after `COMMIT`.
   transaction has an unknown durable outcome and poisons the connection. A
   write `COMMIT` that returns while a transaction still appears active is also
   outcome-unknown.
-- A history or search transaction is read-only. If its interrupted `COMMIT` is followed
-  by proof of a clean inactive state, the original exception propagates and
-  the connection remains reusable; an unprovable or contradictory state still
-  poisons it.
+- A history or search transaction is read-only. If its interrupted `COMMIT` is
+  followed by proof of a clean inactive state, the original exception
+  propagates and the connection remains reusable; an unprovable or
+  contradictory state still poisons it.
 - A poisoned ledger rejects status, reads, and writes. Only `close()` remains
   valid.
 

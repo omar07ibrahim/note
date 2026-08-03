@@ -5,7 +5,7 @@
   "entry": "caller-context",
   "title": "RecallLedger implemented architecture",
   "subtitle": "Explicit tenant context to verified SQLite state and machine-readable output",
-  "description": "Source-derived architecture of the installed RecallLedger CLI, its bounded input and lifecycle dispatcher, tenant-scoped SQLiteLedger API, atomic transition coordinator, canonical event contract, verified reads, durable event log and head projection, and JSON or JSONL output. Tenant identity is trusted caller context, not authentication. Search, model integration, and a network service are not represented.",
+  "description": "Source-derived architecture of the installed RecallLedger CLI, its bounded content and query input, lifecycle dispatcher, tenant-scoped SQLiteLedger API, atomic transition coordinator, canonical event contract, verified reads and reference search, durable event log and head projection, and JSON or JSONL output. Tenant identity is trusted caller context, not authentication. A persistent search index, model integration, and a network service are not represented.",
   "caption": "Source-derived architecture; not a runtime screenshot or benchmark",
   "canvas": {
     "width": 1600,
@@ -34,10 +34,10 @@
       "id": "bounded-input",
       "kind": "python",
       "path": "src/recall_ledger/cli.py",
-      "target": "_read_content",
+      "target": "_read_input_file",
       "match": "defined",
       "expected": "function",
-      "claim": "Create and revise content enters through a bounded strict JSON reader."
+      "claim": "Content and lexical queries enter through bounded non-symlink file readers."
     },
     {
       "id": "dispatch",
@@ -144,8 +144,8 @@
       "path": "docs/transaction-contract.md",
       "target": "stored-row-reconciliation",
       "match": "contains",
-      "expected": "Every event involved in a replay, head read, mutation, or history page",
-      "claim": "Touched events are decoded from canonical bytes and reconciled with duplicated columns."
+      "expected": "Every event involved in a replay, head read, mutation, history page, or",
+      "claim": "Touched and searched events are decoded from canonical bytes and reconciled with duplicated columns."
     },
     {
       "id": "machine-output",
@@ -163,7 +163,7 @@
       "target": "__doc__",
       "match": "contains",
       "expected": "This module does not authenticate tenants, infer identity from note content, or",
-      "claim": "The operator CLI is not an authentication, search, or model boundary."
+      "claim": "The operator CLI is not an authentication or model boundary."
     },
     {
       "id": "logical-deletion",
@@ -237,7 +237,7 @@
       "label": "Bounded input",
       "detail": [
         "no argv abbreviations",
-        "strict UTF-8 JSON",
+        "strict UTF-8 input",
         "closed content shape"
       ],
       "x": 345,
@@ -253,7 +253,7 @@
       "label": "Dispatch",
       "detail": [
         "write commands",
-        "get · head · history",
+        "reads + search",
         "open → execute → close"
       ],
       "x": 345,
@@ -268,7 +268,7 @@
       "lane": "cli-lane",
       "label": "Machine output",
       "detail": [
-        "JSON or history JSONL",
+        "JSON or ranked JSONL",
         "stdout or stderr JSON",
         "stable exit categories"
       ],
@@ -334,7 +334,7 @@
       "detail": [
         "decode event bytes",
         "check row + head",
-        "history page proof"
+        "search + history"
       ],
       "x": 900,
       "y": 600,
@@ -582,8 +582,8 @@
       "binding": "scope-boundary",
       "label": "Implemented scope",
       "text": [
-        "Installed CLI: no authentication, search command, or model integration.",
-        "Reference search is library-only; no server or background worker."
+        "CLI: bounded lexical search; no tenant auth or model integration.",
+        "No persistent index, server, or background worker is implemented."
       ],
       "x": 55,
       "y": 850,

@@ -2,7 +2,7 @@
 
 The data directory and tenant identifier are explicit trusted caller context.
 This module does not authenticate tenants, infer identity from note content, or
-offer search or model integration.
+offer model integration.
 """
 
 from __future__ import annotations
@@ -27,7 +27,15 @@ from .events import (
     TenantId,
     TombstoneReason,
 )
-from .storage import HistoryPage, LedgerStorageError, SQLiteLedger, TransitionResult
+from .retrieval import MAX_QUERY_BYTES, LexicalQuery, LexicalScore, RetrievalContractError
+from .storage import (
+    HistoryPage,
+    LedgerStorageError,
+    SearchHit,
+    SearchResults,
+    SQLiteLedger,
+    TransitionResult,
+)
 
 EXIT_SUCCESS: Final = 0
 EXIT_USAGE: Final = 2
@@ -44,9 +52,30 @@ EXIT_INTERRUPTED: Final = 130
 
 _DEFAULT_BUSY_TIMEOUT_MS: Final = 5_000
 _DEFAULT_HISTORY_LIMIT: Final = 50
+_DEFAULT_SEARCH_LIMIT: Final = 20
 _MAX_CONTENT_INPUT_BYTES: Final = 524_288
 _DECIMAL_PATTERN: Final = re.compile(r"(?:0|-?[1-9][0-9]{0,18})\Z")
 _CONTENT_KEYS: Final = frozenset({"body", "tags", "title"})
+_SUPPORTED_COMMANDS: Final = frozenset(
+    {"create", "get", "head", "history", "revise", "search", "tombstone"}
+)
+_QUERY_REQUEST_CODES: Final = frozenset(
+    {
+        "EMPTY_QUERY",
+        "INVALID_QUERY_TYPE",
+        "INVALID_QUERY_UNICODE",
+        "QUERY_NORMALIZATION_TOO_LARGE",
+        "QUERY_TERM_TOO_LARGE",
+        "QUERY_TOO_LARGE",
+        "TOO_MANY_QUERY_TERMS",
+    }
+)
+_CONTENT_RETRIEVAL_CODES: Final = frozenset(
+    {
+        "CONTENT_NORMALIZATION_TOO_LARGE",
+        "CONTENT_TOKEN_STREAM_TOO_LARGE",
+    }
+)
 
 _REQUEST_CODES: Final = frozenset(
     {
@@ -55,6 +84,7 @@ _REQUEST_CODES: Final = frozenset(
         "INVALID_EXPECTED_REVISION",
         "INVALID_HISTORY_CURSOR",
         "INVALID_HISTORY_LIMIT",
+        "INVALID_SEARCH_LIMIT",
     }
 )
 _STATE_CODES: Final = frozenset(
@@ -196,8 +226,9 @@ def _parser() -> _SafeArgumentParser:
         prog="recall-ledger",
         allow_abbrev=False,
         description=(
-            "Operate one tenant-scoped RecallLedger using an explicit trusted "
-            "data directory and tenant context."
+            "Operate one tenant-scoped RecallLedger using an explicit trusted data "
+            "directory and tenant context. Tenant context is not authentication; "
+            "search is a bounded reference scan, not a persistent index."
         ),
     )
     parser.add_argument(
@@ -304,6 +335,32 @@ def _parser() -> _SafeArgumentParser:
         action="store_true",
         help="emit one event record per line followed by one page record",
     )
+
+    search = commands.add_parser(
+        "search",
+        allow_abbrev=False,
+        help="score every verified live tenant head with the deterministic lexical oracle",
+    )
+    search.add_argument(
+        "--query-file",
+        action=_StoreOnceAction,
+        required=True,
+        metavar="PATH|-",
+        help="strict UTF-8 query text from a regular file, or '-' for stdin; not trimmed",
+    )
+    search.add_argument(
+        "--limit",
+        action=_StoreOnceAction,
+        type=_decimal,
+        default=_DEFAULT_SEARCH_LIMIT,
+        metavar="COUNT",
+        help="top-K count from 1 through 100; the complete scan is unchanged (default: 20)",
+    )
+    search.add_argument(
+        "--jsonl",
+        action="store_true",
+        help="emit one hit record per line followed by one summary record",
+    )
     return parser
 
 
@@ -360,57 +417,108 @@ def _reject_json_constant(_value: str) -> object:
     raise ValueError
 
 
-def _read_bounded(stream: BinaryIO) -> bytes:
-    try:
-        payload = stream.read(_MAX_CONTENT_INPUT_BYTES + 1)
-    except (OSError, ValueError):
-        raise _CliError(
-            exit_code=EXIT_INPUT,
-            code="INPUT_UNAVAILABLE",
-            message="the content input could not be read",
-        ) from None
-    if type(payload) is not bytes:
-        raise _CliError(
-            exit_code=EXIT_INPUT,
-            code="INPUT_INVALID_UTF8",
-            message="the content input must be strict UTF-8 bytes",
-        )
-    if len(payload) > _MAX_CONTENT_INPUT_BYTES:
+def _read_bounded_input(
+    stream: BinaryIO,
+    *,
+    maximum: int,
+    input_name: str,
+    too_large_message: str,
+) -> bytes:
+    payload = bytearray()
+    while len(payload) <= maximum:
+        remaining = maximum + 1 - len(payload)
+        try:
+            chunk = stream.read(remaining)
+        except (OSError, ValueError):
+            raise _CliError(
+                exit_code=EXIT_INPUT,
+                code="INPUT_UNAVAILABLE",
+                message=f"the {input_name} input could not be read",
+            ) from None
+        if type(chunk) is not bytes:
+            raise _CliError(
+                exit_code=EXIT_INPUT,
+                code="INPUT_INVALID_UTF8",
+                message=f"the {input_name} input must be strict UTF-8 bytes",
+            )
+        if len(chunk) > remaining:
+            raise _CliError(
+                exit_code=EXIT_INPUT,
+                code="INPUT_TOO_LARGE",
+                message=too_large_message,
+            )
+        if not chunk:
+            break
+        payload.extend(chunk)
+    if len(payload) > maximum:
         raise _CliError(
             exit_code=EXIT_INPUT,
             code="INPUT_TOO_LARGE",
-            message="the content JSON exceeds the CLI input limit",
+            message=too_large_message,
         )
-    return payload
+    return bytes(payload)
 
 
-def _require_regular_file(descriptor: int) -> None:
+def _read_bounded(stream: BinaryIO) -> bytes:
+    return _read_bounded_input(
+        stream,
+        maximum=_MAX_CONTENT_INPUT_BYTES,
+        input_name="content",
+        too_large_message="the content JSON exceeds the CLI input limit",
+    )
+
+
+def _read_bounded_query(stream: BinaryIO) -> bytes:
+    return _read_bounded_input(
+        stream,
+        maximum=MAX_QUERY_BYTES,
+        input_name="query",
+        too_large_message="the query text exceeds the CLI input limit",
+    )
+
+
+def _require_regular_input_file(descriptor: int, *, input_name: str) -> None:
     if not stat.S_ISREG(os.fstat(descriptor).st_mode):
         raise _CliError(
             exit_code=EXIT_INPUT,
             code="INPUT_UNSAFE_FILE",
-            message="the content input must be a regular non-symlink file",
+            message=f"the {input_name} input must be a regular non-symlink file",
         )
 
 
-def _read_content_file(path_text: str) -> bytes:
+def _require_regular_file(descriptor: int) -> None:
+    _require_regular_input_file(descriptor, input_name="content")
+
+
+def _read_input_file(
+    path_text: str,
+    *,
+    input_name: str,
+    maximum: int,
+    too_large_message: str,
+) -> bytes:
     descriptor = -1
     try:
         descriptor = os.open(
             path_text,
             os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW | os.O_NONBLOCK,
         )
-        _require_regular_file(descriptor)
+        _require_regular_input_file(descriptor, input_name=input_name)
         with os.fdopen(descriptor, "rb") as stream:
             descriptor = -1
-            return _read_bounded(stream)
+            return _read_bounded_input(
+                stream,
+                maximum=maximum,
+                input_name=input_name,
+                too_large_message=too_large_message,
+            )
     except _CliError:
         raise
     except (OSError, ValueError):
         raise _CliError(
             exit_code=EXIT_INPUT,
             code="INPUT_UNAVAILABLE",
-            message="the content input could not be opened",
+            message=f"the {input_name} input could not be opened",
         ) from None
     finally:
         if descriptor >= 0:
@@ -420,8 +528,26 @@ def _read_content_file(path_text: str) -> bytes:
                 raise _CliError(
                     exit_code=EXIT_INPUT,
                     code="INPUT_UNAVAILABLE",
-                    message="the content input could not be closed",
+                    message=f"the {input_name} input could not be closed",
                 ) from None
+
+
+def _read_content_file(path_text: str) -> bytes:
+    return _read_input_file(
+        path_text,
+        input_name="content",
+        maximum=_MAX_CONTENT_INPUT_BYTES,
+        too_large_message="the content JSON exceeds the CLI input limit",
+    )
+
+
+def _read_query_file(path_text: str) -> bytes:
+    return _read_input_file(
+        path_text,
+        input_name="query",
+        maximum=MAX_QUERY_BYTES,
+        too_large_message="the query text exceeds the CLI input limit",
+    )
 
 
 def _read_content(path_text: str, stdin: BinaryIO) -> NoteContent:
@@ -478,6 +604,18 @@ def _read_content(path_text: str, stdin: BinaryIO) -> NoteContent:
             message="every content tag must be a string",
         )
     return NoteContent(title=title, body=body, tags=tuple(cast(list[str], tags)))
+
+
+def _read_query(path_text: str, stdin: BinaryIO) -> str:
+    payload = _read_bounded_query(stdin) if path_text == "-" else _read_query_file(path_text)
+    try:
+        return payload.decode("utf-8", errors="strict")
+    except UnicodeDecodeError:
+        raise _CliError(
+            exit_code=EXIT_INPUT,
+            code="INPUT_INVALID_UTF8",
+            message="the query input is not strict UTF-8",
+        ) from None
 
 
 def _event_object(event: LedgerEvent) -> JsonObject:
@@ -551,6 +689,87 @@ def _history_records(
     return (*event_records, page_record)
 
 
+def _query_object(query: LexicalQuery) -> JsonObject:
+    return {
+        "contract_version": query.contract_version,
+        "encoded_terms": query.encoded_terms,
+        "match_expression": query.match_expression,
+        "terms": query.terms,
+        "unicode_profile": query.unicode_profile,
+    }
+
+
+def _score_object(score: LexicalScore) -> JsonObject:
+    return {
+        "body_phrase": score.body_phrase,
+        "body_term_frequency": score.body_term_frequency,
+        "contract_version": score.contract_version,
+        "tag_phrase": score.tag_phrase,
+        "tag_term_frequency": score.tag_term_frequency,
+        "title_phrase": score.title_phrase,
+        "title_term_frequency": score.title_term_frequency,
+        "total": score.total,
+        "unicode_profile": score.unicode_profile,
+    }
+
+
+def _search_hit_object(hit: SearchHit, *, rank: int) -> JsonObject:
+    return {
+        "citation": {
+            "event_hash": hit.citation.event_hash,
+            "note_id": hit.citation.note_id,
+            "revision": hit.citation.revision,
+            "tenant_id": hit.citation.tenant_id,
+        },
+        "content": {
+            "body": hit.content.body,
+            "tags": hit.content.tags,
+            "title": hit.content.title,
+        },
+        "rank": rank,
+        "recorded_at_us": hit.recorded_at_us,
+        "score": _score_object(hit.score),
+    }
+
+
+def _search_document(results: SearchResults) -> JsonObject:
+    return {
+        "hits": [
+            _search_hit_object(hit, rank=rank) for rank, hit in enumerate(results.hits, start=1)
+        ],
+        "limit": results.limit,
+        "ok": True,
+        "operation": "search",
+        "query": _query_object(results.query),
+        "scanned_content_bytes": results.scanned_content_bytes,
+        "scanned_heads": results.scanned_heads,
+        "scanned_live_notes": results.scanned_live_notes,
+        "tenant_id": results.tenant_id,
+        "total_matches": results.total_matches,
+        "truncated": results.total_matches > len(results.hits),
+    }
+
+
+def _search_records(results: SearchResults) -> tuple[JsonObject, ...]:
+    hit_records: tuple[JsonObject, ...] = tuple(
+        {"hit": _search_hit_object(hit, rank=rank), "record": "hit"}
+        for rank, hit in enumerate(results.hits, start=1)
+    )
+    summary: JsonObject = {
+        "hit_count": len(results.hits),
+        "limit": results.limit,
+        "query": _query_object(results.query),
+        "record": "summary",
+        "scanned_content_bytes": results.scanned_content_bytes,
+        "scanned_heads": results.scanned_heads,
+        "scanned_live_notes": results.scanned_live_notes,
+        "tenant_id": results.tenant_id,
+        "total_matches": results.total_matches,
+        "truncated": results.total_matches > len(results.hits),
+    }
+    return (*hit_records, summary)
+
+
 def _command_retry(command: str | None, *, reopen: bool = False) -> str:
     mutation = command in {"create", "revise", "tombstone"}
     if reopen:
@@ -591,6 +810,12 @@ def _execute(  # noqa: PLR0912,PLR0915 - command and lifecycle states stay expli
         )
     tenant_id = TenantId(cast(str, namespace.tenant_id))
     command = cast(str, namespace.command)
+    if command not in _SUPPORTED_COMMANDS:
+        raise _CliError(
+            exit_code=EXIT_USAGE,
+            code="CLI_USAGE",
+            message="the parser produced an unsupported command",
+        )
     pretty = cast(bool, namespace.pretty)
     busy_timeout_ms = cast(int, namespace.busy_timeout_ms)
     jsonl = cast(bool, getattr(namespace, "jsonl", False))
@@ -598,12 +823,15 @@ def _execute(  # noqa: PLR0912,PLR0915 - command and lifecycle states stay expli
         raise _CliError(
             exit_code=EXIT_USAGE,
             code="CLI_USAGE",
-            message="--pretty and history --jsonl cannot be combined",
+            message="--pretty and --jsonl cannot be combined",
         )
 
     content: NoteContent | None = None
+    query_text: str | None = None
     if command in {"create", "revise"}:
         content = _read_content(cast(str, namespace.content_file), stdin)
+    elif command == "search":
+        query_text = _read_query(cast(str, namespace.query_file), stdin)
 
     ledger = SQLiteLedger.open(data_directory, busy_timeout_ms=busy_timeout_ms)
     records: tuple[JsonObject, ...]
@@ -645,7 +873,7 @@ def _execute(  # noqa: PLR0912,PLR0915 - command and lifecycle states stay expli
                 note_id=NoteId(cast(str, namespace.note_id)),
             )
             records = (_read_result(command, event),)
-        else:
+        elif command == "history":
             note_id = NoteId(cast(str, namespace.note_id))
             after_revision = cast(int, namespace.after_revision)
             limit = cast(int, namespace.limit)
@@ -674,6 +902,13 @@ def _execute(  # noqa: PLR0912,PLR0915 - command and lifecycle states stay expli
                     ),
                 )
             )
+        else:
+            results = ledger.search_notes(
+                tenant_id=tenant_id,
+                query=cast(str, query_text),
+                limit=cast(int, namespace.limit),
+            )
+            records = _search_records(results) if jsonl else (_search_document(results),)
     except BaseException as operation_error:
         try:
             ledger.close()
@@ -845,6 +1080,30 @@ def run_cli(  # noqa: PLR0911 - stable exit categories stay explicit at the boun
             code=error.code,
             message=str(error),
             retry=_retry_guidance(error.code, command=command),
+        )
+    except RetrievalContractError as error:
+        if error.code in _QUERY_REQUEST_CODES:
+            return _emit_error(
+                stderr,
+                exit_code=EXIT_REQUEST,
+                code=error.code,
+                message=str(error),
+                retry="none",
+            )
+        if error.code in _CONTENT_RETRIEVAL_CODES:
+            return _emit_error(
+                stderr,
+                exit_code=EXIT_STORAGE,
+                code=error.code,
+                message=str(error),
+                retry="none",
+            )
+        return _emit_error(
+            stderr,
+            exit_code=EXIT_INTERNAL,
+            code="INTERNAL_ERROR",
+            message="the CLI failed without exposing internal diagnostics",
+            retry="none",
         )
     except LedgerStorageError as error:
         command = None if namespace is None else cast(str, namespace.command)

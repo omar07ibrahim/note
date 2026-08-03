@@ -4,7 +4,7 @@ RecallLedger's durable-storage boundary defines how a local SQLite database is
 identified, migrated, opened, checked, and updated through atomic note
 transitions. It exposes tenant-scoped head/history reads and a bounded lexical
 reference search, but no persistent retrieval index, projection rebuild,
-search CLI, or authorization adapter.
+network service, or authorization adapter.
 
 This module currently supports Linux/POSIX only. It depends on `fcntl`,
 `flock`, `O_DIRECTORY`, `O_NOFOLLOW`, and `register_at_fork`; Windows is not a
@@ -142,6 +142,19 @@ lexical contract version and Unicode profile, rebuild or fail closed on a
 profile mismatch, and pass every candidate through this exact scorer. It must
 remain observationally identical to the reference engine for hits, scores,
 ordering, revision replacement, tombstones, and tenant-stuffing invariance.
+
+The installed operator CLI exposes this exact path through `search
+--query-file PATH|- [--limit COUNT] [--jsonl]`. Query bytes come from a bounded
+strict UTF-8 regular file or standard input, never a raw argv value, and are
+not trimmed. Compact or pretty JSON contains ranked hits plus scan accounting;
+JSONL emits each ranked hit followed by one summary. The top-K limit never
+reduces the complete integrity scan. Successful output includes full current
+note content and reversible encoded query terms, so callers must treat it as a
+privileged local surface rather than an authorization boundary.
+
+The current CLI materializes the complete result after closing the ledger;
+JSONL does not imply streaming, and JSON escaping can expand the bounded raw
+corpus substantially. No small-memory or small-output claim is made.
 
 ## Connection profile
 

@@ -8,13 +8,14 @@ measured hybrid retrieval.
 
 It is not currently a Telegram bot or a generic CRUD application.
 
-> **Phase 3a — bounded lexical reference search.** The current tree combines bounded,
+> **Phase 3b — installed lexical search CLI.** The current tree combines bounded,
 > canonical, tenant-scoped note events with a versioned, locked SQLite
 > boundary, transactional create/revise/tombstone/head/history operations, and
 > a deterministic tenant-local search oracle over every verified current head.
-> The installed `recall-ledger` console script still covers the mutation/read
-> workflow only. No authorization adapter, persistent retrieval index, search
-> CLI, model integration, benchmark, or user interface is claimed yet.
+> The installed `recall-ledger` console script exposes that reference path as
+> canonical JSON or JSONL. No authorization adapter, persistent retrieval
+> index, model integration, evaluation benchmark, or user interface is claimed
+> yet.
 
 The storage slice currently supports Linux/POSIX deployments only. Its
 `fcntl`, `flock`, `O_DIRECTORY`, `O_NOFOLLOW`, and fork-safety contract is
@@ -122,12 +123,18 @@ flowchart LR
 
 `recall_ledger.cli` is an installed, dependency-free operator boundary. It
 accepts an explicit trusted data directory and tenant context, reads note
-content from a bounded file or standard input, and emits one canonical JSON
-document per invocation. History can instead emit canonical JSONL. Mutations
-surface exact command replay, revision conflicts, busy/uncertain settlement,
-storage-safety failures, and output-delivery failures through documented exit
-categories and retry guidance. The CLI does not authenticate the supplied
-tenant identifier and does not yet expose the library search API.
+content and lexical queries from bounded regular files or standard input, and
+emits one canonical JSON document per invocation. History and search can
+instead emit canonical JSONL. Search returns the compiled profile, exact score
+breakdowns, 1-based ranks, current-head citations, full-scan accounting, and an
+explicit truncation flag. Query text is not accepted in argv or silently
+trimmed. Mutations surface exact command replay, revision conflicts,
+busy/uncertain settlement, storage-safety failures, and output-delivery
+failures through documented exit categories and retry guidance. The CLI does
+not authenticate the supplied tenant identifier. JSONL is currently a
+machine-readable representation, not incremental transport: the bounded result
+is serialized after the ledger closes and can expand materially under JSON
+escaping.
 
 The exact guarantees, deployment preconditions, failure states, and non-claims
 are in the [SQLite storage boundary](docs/storage-boundary.md) and
@@ -169,6 +176,14 @@ DATA_DIR="$(pwd -P)/local-ledger"
   create \
   --command-id cmd_00000000000000000000000000000001 \
   --content-file docs/visuals/fixtures/cli-content-v1.json
+
+printf '%s' 'portfolio evidence' | .runtime/bin/recall-ledger \
+  --data-dir "$DATA_DIR" \
+  --tenant-id tn_11111111111111111111111111111111 \
+  search \
+  --query-file - \
+  --limit 5 \
+  --jsonl
 ```
 
 The synthetic IDs and content above are reproducible documentation fixtures;

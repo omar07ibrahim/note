@@ -19,10 +19,12 @@ from recall_ledger import (
     LedgerStorageError,
     NoteContent,
     NoteId,
+    RetrievalContractError,
     TenantId,
     TransitionResult,
     cli,
 )
+from recall_ledger.retrieval import MAX_QUERY_BYTES
 
 TENANT_A = "tn_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 TENANT_B = "tn_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
@@ -31,6 +33,7 @@ REVISE = "cmd_00000000000000000000000000000002"
 DELETE = "cmd_00000000000000000000000000000003"
 OTHER = "cmd_00000000000000000000000000000004"
 STALE = "cmd_00000000000000000000000000000005"
+SEARCH_SECOND = "cmd_00000000000000000000000000000006"
 
 
 def secure_directory(tmp_path: Path, name: str = "data") -> Path:
@@ -51,6 +54,10 @@ def content_bytes(
         ensure_ascii=True,
         sort_keys=True,
     ).encode()
+
+
+def scanned_content_bytes(*, title: str, body: str, tags: tuple[str, ...]) -> int:
+    return len(title.encode()) + len(body.encode()) + sum(len(tag.encode()) for tag in tags)
 
 
 def common_arguments(data_directory: Path, *, tenant_id: str = TENANT_A) -> list[str]:
@@ -390,6 +397,355 @@ def test_state_conflicts_have_stable_codes_and_guidance(tmp_path: Path) -> None:
     )
 
 
+def seed_search_corpus(
+    data_directory: Path,
+) -> tuple[dict[str, object], dict[str, object], int]:
+    first = create_note(data_directory, body="alpha beta in the body")
+    first_event = event_from_result(first)
+    second_content = content_bytes(
+        title="Alpha beta runbook",
+        body="Operational retrieval evidence.",
+        tags=("portfolio", "search"),
+    )
+    second_code, second_output, second_error = run_command(
+        data_directory,
+        [
+            "create",
+            "--command-id",
+            SEARCH_SECOND,
+            "--content-file",
+            "-",
+        ],
+        stdin=second_content,
+    )
+    assert second_code == cli.EXIT_SUCCESS
+    assert second_error == ""
+    second_event = event_from_result(cast(dict[str, object], json.loads(second_output)))
+    expected_bytes = scanned_content_bytes(
+        title="Operator fixture",
+        body="alpha beta in the body",
+        tags=("demo",),
+    ) + scanned_content_bytes(
+        title="Alpha beta runbook",
+        body="Operational retrieval evidence.",
+        tags=("portfolio", "search"),
+    )
+    return first_event, second_event, expected_bytes
+
+
+def test_search_json_exposes_ranking_citations_and_scan_accounting(tmp_path: Path) -> None:
+    data_directory = secure_directory(tmp_path)
+    _, second_event, expected_bytes = seed_search_corpus(data_directory)
+
+    search_code, search_output, search_error = run_command(
+        data_directory,
+        ["search", "--query-file", "-", "--limit", "1"],
+        stdin="\uff21\uff2c\uff30\uff28\uff21 beta".encode(),
+    )
+    assert search_code == cli.EXIT_SUCCESS
+    assert search_error == ""
+    document = cast(dict[str, object], json.loads(search_output))
+    assert set(document) == {
+        "hits",
+        "limit",
+        "ok",
+        "operation",
+        "query",
+        "scanned_content_bytes",
+        "scanned_heads",
+        "scanned_live_notes",
+        "tenant_id",
+        "total_matches",
+        "truncated",
+    }
+    assert document["operation"] == "search"
+    assert document["ok"] is True
+    assert document["tenant_id"] == TENANT_A
+    assert document["limit"] == 1
+    assert document["total_matches"] == 2
+    assert document["truncated"] is True
+    assert document["scanned_heads"] == 2
+    assert document["scanned_live_notes"] == 2
+    assert document["scanned_content_bytes"] == expected_bytes
+    query = cast(dict[str, object], document["query"])
+    assert set(query) == {
+        "contract_version",
+        "encoded_terms",
+        "match_expression",
+        "terms",
+        "unicode_profile",
+    }
+    assert query["terms"] == ["alpha", "beta"]
+    assert query["encoded_terms"] == ["u616c706861", "u62657461"]
+    assert query["match_expression"] == '"u616c706861" AND "u62657461"'
+    assert query["contract_version"] == 1
+    assert cast(str, query["unicode_profile"]).startswith("nfkc-casefold-nfkc+")
+
+    hits = cast(list[dict[str, object]], document["hits"])
+    assert len(hits) == 1
+    assert set(hits[0]) == {"citation", "content", "rank", "recorded_at_us", "score"}
+    assert hits[0]["rank"] == 1
+    citation = cast(dict[str, object], hits[0]["citation"])
+    assert set(citation) == {"event_hash", "note_id", "revision", "tenant_id"}
+    assert citation == {
+        "event_hash": second_event["event_hash"],
+        "note_id": second_event["note_id"],
+        "revision": 1,
+        "tenant_id": TENANT_A,
+    }
+    assert hits[0]["content"] == {
+        "body": "Operational retrieval evidence.",
+        "tags": ["portfolio", "search"],
+        "title": "Alpha beta runbook",
+    }
+    score = cast(dict[str, object], hits[0]["score"])
+    assert set(score) == {
+        "body_phrase",
+        "body_term_frequency",
+        "contract_version",
+        "tag_phrase",
+        "tag_term_frequency",
+        "title_phrase",
+        "title_term_frequency",
+        "total",
+        "unicode_profile",
+    }
+    assert score["total"] == 48
+    assert score["title_term_frequency"] == 2
+    assert score["title_phrase"] is True
+    assert score["body_phrase"] is False
+    assert score["tag_phrase"] is False
+    assert score["contract_version"] == query["contract_version"]
+    assert score["unicode_profile"] == query["unicode_profile"]
+
+
+def test_search_jsonl_emits_ranked_hits_then_summary_and_handles_empty_tenant(
+    tmp_path: Path,
+) -> None:
+    data_directory = secure_directory(tmp_path)
+    first_event, second_event, _ = seed_search_corpus(data_directory)
+
+    jsonl_code, jsonl_output, jsonl_error = run_command(
+        data_directory,
+        ["search", "--query-file", "-", "--limit", "2", "--jsonl"],
+        stdin=b"alpha beta",
+    )
+    assert jsonl_code == cli.EXIT_SUCCESS
+    assert jsonl_error == ""
+    records = [cast(dict[str, object], json.loads(line)) for line in jsonl_output.splitlines()]
+    assert [record["record"] for record in records] == ["hit", "hit", "summary"]
+    assert cast(dict[str, object], records[0]["hit"])["rank"] == 1
+    assert cast(dict[str, object], records[1]["hit"])["rank"] == 2
+    assert (
+        cast(dict[str, object], cast(dict[str, object], records[0]["hit"])["citation"])["note_id"]
+        == second_event["note_id"]
+    )
+    assert (
+        cast(dict[str, object], cast(dict[str, object], records[1]["hit"])["citation"])["note_id"]
+        == first_event["note_id"]
+    )
+    assert records[-1]["hit_count"] == records[-1]["total_matches"] == 2
+    assert records[-1]["truncated"] is False
+    assert records[-1]["scanned_heads"] == 2
+    assert set(records[-1]) == {
+        "hit_count",
+        "limit",
+        "query",
+        "record",
+        "scanned_content_bytes",
+        "scanned_heads",
+        "scanned_live_notes",
+        "tenant_id",
+        "total_matches",
+        "truncated",
+    }
+
+    empty_code, empty_output, empty_error = run_command(
+        data_directory,
+        ["search", "--query-file", "-", "--jsonl"],
+        tenant_id=TENANT_B,
+        stdin=b"alpha",
+    )
+    assert empty_code == cli.EXIT_SUCCESS
+    assert empty_error == ""
+    empty_summary = cast(dict[str, object], json.loads(empty_output))
+    assert empty_summary["record"] == "summary"
+    assert empty_summary["hit_count"] == empty_summary["total_matches"] == 0
+    assert empty_summary["truncated"] is False
+    assert empty_summary["scanned_heads"] == empty_summary["scanned_live_notes"] == 0
+
+
+def test_search_pretty_output_remains_one_valid_document(tmp_path: Path) -> None:
+    data_directory = secure_directory(tmp_path)
+    exit_code, output, errors = run_command(
+        data_directory,
+        ["search", "--query-file", "-"],
+        stdin=b"alpha",
+        global_arguments=["--pretty"],
+    )
+    assert exit_code == cli.EXIT_SUCCESS
+    assert errors == ""
+    assert output.startswith('{\n  "hits": []')
+    assert output.endswith("\n}\n")
+    assert cast(dict[str, object], json.loads(output))["operation"] == "search"
+
+
+class _ReadFailure:
+    def read(self, _size: int = -1) -> bytes:
+        raise OSError
+
+
+class _TextReader:
+    def read(self, _size: int = -1) -> str:
+        return "{}"
+
+
+class _ChunkedReader:
+    def __init__(self, payload: bytes, *, chunk_size: int) -> None:
+        self.payload = payload
+        self.chunk_size = chunk_size
+        self.offset = 0
+
+    def read(self, size: int = -1) -> bytes:
+        accepted = min(size, self.chunk_size, len(self.payload) - self.offset)
+        chunk = self.payload[self.offset : self.offset + accepted]
+        self.offset += accepted
+        return chunk
+
+
+class _OverReturningReader:
+    def read(self, size: int = -1) -> bytes:
+        return b"x" * (size + 1)
+
+
+def test_search_query_rejections_are_safe_request_errors(tmp_path: Path) -> None:
+    data_directory = secure_directory(tmp_path)
+    exit_code, output, errors = run_command(
+        data_directory,
+        ["search", "--query-file", "-"],
+        stdin=b"<> _ -",
+    )
+    assert exit_code == cli.EXIT_REQUEST
+    assert output == ""
+    assert decoded_error(errors)["error"] == {
+        "code": "EMPTY_QUERY",
+        "message": "the query must contain at least one letter or number",
+        "retry": "none",
+    }
+
+
+@pytest.mark.parametrize(
+    ("stream", "expected_code"),
+    (
+        (io.BytesIO(b"\xff"), "INPUT_INVALID_UTF8"),
+        (io.BytesIO(b"a" * (MAX_QUERY_BYTES + 1)), "INPUT_TOO_LARGE"),
+        (_ReadFailure(), "INPUT_UNAVAILABLE"),
+        (_TextReader(), "INPUT_INVALID_UTF8"),
+        (_OverReturningReader(), "INPUT_TOO_LARGE"),
+    ),
+)
+def test_search_query_stdin_is_bounded_before_storage_open(
+    tmp_path: Path,
+    stream: object,
+    expected_code: str,
+) -> None:
+    data_directory = secure_directory(tmp_path)
+    exit_code, output, errors = run_raw(
+        [*common_arguments(data_directory), "search", "--query-file", "-"],
+        stdin=cast(BinaryIO, stream),
+    )
+    assert exit_code == cli.EXIT_INPUT
+    assert output == ""
+    assert cast(dict[str, object], decoded_error(errors)["error"])["code"] == expected_code
+    assert list(data_directory.iterdir()) == []
+
+
+def test_search_query_reader_consumes_multiple_bounded_chunks(tmp_path: Path) -> None:
+    data_directory = secure_directory(tmp_path)
+    exit_code, output, errors = run_raw(
+        [*common_arguments(data_directory), "search", "--query-file", "-"],
+        stdin=cast(BinaryIO, _ChunkedReader(b"alpha beta", chunk_size=2)),
+    )
+    assert exit_code == cli.EXIT_SUCCESS
+    assert errors == ""
+    document = cast(dict[str, object], json.loads(output))
+    assert cast(dict[str, object], document["query"])["terms"] == ["alpha", "beta"]
+
+
+def test_search_query_input_is_not_trimmed_and_limit_is_storage_validated(tmp_path: Path) -> None:
+    data_directory = secure_directory(tmp_path)
+    untrimmed_code, untrimmed_output, untrimmed_error = run_command(
+        data_directory,
+        ["search", "--query-file", "-"],
+        stdin=b"a" + b" " * 512,
+    )
+    assert untrimmed_code == cli.EXIT_REQUEST
+    assert untrimmed_output == ""
+    assert cast(dict[str, object], decoded_error(untrimmed_error)["error"])["code"] == (
+        "QUERY_TOO_LARGE"
+    )
+
+    limit_code, limit_output, limit_error = run_command(
+        data_directory,
+        ["search", "--query-file", "-", "--limit", "101"],
+        stdin=b"alpha",
+    )
+    assert limit_code == cli.EXIT_REQUEST
+    assert limit_output == ""
+    assert cast(dict[str, object], decoded_error(limit_error)["error"])["code"] == (
+        "INVALID_SEARCH_LIMIT"
+    )
+
+
+def test_search_query_file_rejects_unsafe_paths_without_reflection(tmp_path: Path) -> None:
+    data_directory = secure_directory(tmp_path)
+    target = tmp_path / "private-query.txt"
+    target.write_text("alpha", encoding="utf-8")
+    symlink = tmp_path / "private-query-link"
+    symlink.symlink_to(target)
+    fifo = tmp_path / "private-query-fifo"
+    os.mkfifo(fifo)
+    directory = tmp_path / "private-query-directory"
+    directory.mkdir()
+
+    for path_text, expected_code in (
+        (str(symlink), "INPUT_UNAVAILABLE"),
+        (str(fifo), "INPUT_UNSAFE_FILE"),
+        (str(directory), "INPUT_UNSAFE_FILE"),
+        (f"{tmp_path}\x00private", "INPUT_UNAVAILABLE"),
+        (str(tmp_path / "private-missing-query"), "INPUT_UNAVAILABLE"),
+    ):
+        exit_code, output, errors = run_command(
+            data_directory,
+            ["search", "--query-file", path_text],
+        )
+        assert exit_code == cli.EXIT_INPUT
+        assert output == ""
+        assert path_text not in errors
+        assert cast(dict[str, object], decoded_error(errors)["error"])["code"] == expected_code
+    assert list(data_directory.iterdir()) == []
+
+
+def test_search_reads_exact_regular_query_file_and_treats_operators_as_terms(
+    tmp_path: Path,
+) -> None:
+    data_directory = secure_directory(tmp_path)
+    create_note(data_directory, body="alpha only")
+    query_path = tmp_path / "query.txt"
+    query_path.write_bytes(b'" OR * NEAR(alpha)')
+
+    exit_code, output, errors = run_command(
+        data_directory,
+        ["search", "--query-file", str(query_path)],
+    )
+    assert exit_code == cli.EXIT_SUCCESS
+    assert errors == ""
+    document = cast(dict[str, object], json.loads(output))
+    assert cast(dict[str, object], document["query"])["terms"] == ["or", "near", "alpha"]
+    assert document["total_matches"] == 0
+    assert document["hits"] == []
+
+
 @pytest.mark.parametrize(
     "arguments,private_value",
     [
@@ -509,6 +865,34 @@ def test_state_conflicts_have_stable_codes_and_guidance(tmp_path: Path) -> None:
             ],
             "99",
         ),
+        (
+            [
+                "--data-dir",
+                "/operator/unused",
+                "--tenant-id",
+                TENANT_A,
+                "search",
+                "--query-file",
+                "alpha",
+                "--query-file",
+                "\x1b[31mPRIVATE",
+            ],
+            "\x1b[31mPRIVATE",
+        ),
+        (
+            [
+                "--data-dir",
+                "/operator/unused",
+                "--tenant-id",
+                TENANT_A,
+                "search",
+                "--query-file",
+                "-",
+                "--limit",
+                "01",
+            ],
+            "01",
+        ),
     ],
 )
 def test_parser_rejections_never_reflect_argv(arguments: list[str], private_value: str) -> None:
@@ -544,17 +928,52 @@ def test_help_uses_injected_streams_without_required_context(tmp_path: Path) -> 
     assert "--command-id" in sub_help
     assert sub_error == ""
 
+    search_code, search_help, search_error = run_raw(
+        [*common_arguments(tmp_path / "not-opened"), "search", "--help"]
+    )
+    assert search_code == cli.EXIT_SUCCESS
+    assert "usage: recall-ledger search" in search_help
+    assert "--query-file" in search_help
+    assert "--jsonl" in search_help
+    assert search_error == ""
 
-def test_pretty_and_jsonl_are_mutually_exclusive(tmp_path: Path) -> None:
+
+def test_execute_rejects_an_injected_command_outside_the_parser_allowlist(
+    tmp_path: Path,
+) -> None:
     data_directory = secure_directory(tmp_path)
-    exit_code, output, errors = run_command(
-        data_directory,
+    namespace = SimpleNamespace(
+        command="private-command",
+        data_dir=str(data_directory),
+        tenant_id=TENANT_A,
+    )
+    with pytest.raises(cli._CliError) as captured:
+        cli._execute(namespace, stdin=io.BytesIO())
+    assert captured.value.exit_code == cli.EXIT_USAGE
+    assert captured.value.code == "CLI_USAGE"
+    assert list(data_directory.iterdir()) == []
+
+
+@pytest.mark.parametrize(
+    "command_arguments",
+    (
         [
             "history",
             "--note-id",
             "nt_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
             "--jsonl",
         ],
+        ["search", "--query-file", "-", "--jsonl"],
+    ),
+)
+def test_pretty_and_jsonl_are_mutually_exclusive(
+    tmp_path: Path,
+    command_arguments: list[str],
+) -> None:
+    data_directory = secure_directory(tmp_path)
+    exit_code, output, errors = run_command(
+        data_directory,
+        command_arguments,
         global_arguments=["--pretty"],
     )
     assert exit_code == cli.EXIT_USAGE
@@ -625,16 +1044,6 @@ def test_content_contract_rejection_is_exit_ten_before_storage_open(tmp_path: Pa
     assert list(data_directory.iterdir()) == []
 
 
-class _ReadFailure:
-    def read(self, _size: int = -1) -> bytes:
-        raise OSError
-
-
-class _TextReader:
-    def read(self, _size: int = -1) -> str:
-        return "{}"
-
-
 @pytest.mark.parametrize(
     "stream,expected_code",
     [
@@ -697,6 +1106,18 @@ def test_closed_and_oversized_stdin_are_bounded(tmp_path: Path) -> None:
     assert oversized_code == cli.EXIT_INPUT
     assert cast(dict[str, object], decoded_error(oversized_error)["error"])["code"] == (
         "INPUT_TOO_LARGE"
+    )
+
+    closed_query = io.BytesIO()
+    closed_query.close()
+    query_code, query_output, query_error = run_raw(
+        [*common_arguments(data_directory), "search", "--query-file", "-"],
+        stdin=closed_query,
+    )
+    assert query_code == cli.EXIT_INPUT
+    assert query_output == ""
+    assert cast(dict[str, object], decoded_error(query_error)["error"])["code"] == (
+        "INPUT_UNAVAILABLE"
     )
 
 
@@ -797,10 +1218,13 @@ def test_content_descriptor_close_failure_is_bounded(
     "code,expected",
     [
         ("INVALID_HISTORY_LIMIT", cli.EXIT_REQUEST),
+        ("INVALID_SEARCH_LIMIT", cli.EXIT_REQUEST),
         ("NOTE_NOT_FOUND", cli.EXIT_STATE),
         ("LEDGER_BUSY", cli.EXIT_BUSY),
         ("COMMIT_OUTCOME_UNKNOWN", cli.EXIT_UNCERTAIN),
         ("MIGRATION_FAILED", cli.EXIT_STORAGE_SAFETY),
+        ("SEARCH_INVENTORY_TOO_LARGE", cli.EXIT_STORAGE),
+        ("SEARCH_CORPUS_TOO_LARGE", cli.EXIT_STORAGE),
         ("DATABASE_FULL", cli.EXIT_STORAGE),
     ],
 )
@@ -815,6 +1239,7 @@ def test_storage_exit_code_groups(code: str, expected: int) -> None:
         ("LEDGER_BUSY", "get", "retry_same_invocation"),
         ("ROLLBACK_FAILED", "revise", "reopen_and_retry_exact_command"),
         ("ROLLBACK_FAILED", "history", "reopen_and_retry_same_invocation"),
+        ("ROLLBACK_FAILED", "search", "reopen_and_retry_same_invocation"),
         ("REVISION_CONFLICT", "revise", "inspect_head_then_new_command"),
         ("IDEMPOTENCY_CONFLICT", "create", "do_not_retry_same_command"),
         ("DATABASE_FULL", None, "none"),
@@ -832,6 +1257,17 @@ def test_retry_guidance_groups(
     "error,expected_exit,expected_code",
     [
         (ContractViolation("INVALID_TEXT", "safe contract"), cli.EXIT_REQUEST, "INVALID_TEXT"),
+        (RetrievalContractError("EMPTY_QUERY", "safe query"), cli.EXIT_REQUEST, "EMPTY_QUERY"),
+        (
+            RetrievalContractError("CONTENT_TOKEN_STREAM_TOO_LARGE", "safe content bound"),
+            cli.EXIT_STORAGE,
+            "CONTENT_TOKEN_STREAM_TOO_LARGE",
+        ),
+        (
+            RetrievalContractError("UNICODE_PROFILE_MISMATCH", "private derived state"),
+            cli.EXIT_INTERNAL,
+            "INTERNAL_ERROR",
+        ),
         (
             LedgerStorageError("LEDGER_BUSY", "safe storage"),
             cli.EXIT_BUSY,
@@ -1529,6 +1965,35 @@ def test_installed_wheel_entry_point_and_real_broken_pipe_recovery(tmp_path: Pat
     assert replay.returncode == cli.EXIT_SUCCESS
     assert replay.stderr == ""
     assert json.loads(replay.stdout)["replayed"] is True
+
+    query = tmp_path / "installed-query.txt"
+    query.write_text("operator fixture", encoding="utf-8")
+    installed_search = subprocess.run(  # noqa: S603 - installed entry point is test-owned
+        [
+            str(executable),
+            *common_arguments(data_directory),
+            "search",
+            "--query-file",
+            str(query),
+            "--limit",
+            "1",
+        ],
+        cwd=tmp_path,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert installed_search.returncode == cli.EXIT_SUCCESS
+    assert installed_search.stderr == ""
+    installed_result = cast(dict[str, object], json.loads(installed_search.stdout))
+    assert installed_result["operation"] == "search"
+    assert installed_result["total_matches"] == 1
+    installed_hit = cast(list[dict[str, object]], installed_result["hits"])[0]
+    assert (
+        cast(dict[str, object], installed_hit["citation"])["note_id"]
+        == event_from_result(cast(dict[str, object], json.loads(replay.stdout)))["note_id"]
+    )
+    assert cast(dict[str, object], installed_hit["score"])["total"] == 48
 
     invalid = subprocess.Popen(  # noqa: S603 - installed entry point is test-owned
         [str(executable), "--malicious-invalid-option"],

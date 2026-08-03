@@ -46,15 +46,16 @@ retrieval quality, or measured performance.
 ![RecallLedger implemented architecture](architecture-workflow.svg)
 
 Source-derived architecture of one installed operator CLI invocation: explicit
-caller context, bounded input, command dispatch, the tenant-scoped
+caller context, bounded content/query input, command dispatch, the tenant-scoped
 `SQLiteLedger` boundary, transaction-local event derivation, the durable event
-log and head projection, verified reads, and machine-readable output. The
-new-command path is distinct from the exact-replay bypass, which returns the
-stored event after proof without another event append or head write.
+log and head projection, verified reads and reference search, and
+machine-readable output. The new-command path is distinct from the exact-replay
+bypass, which returns the stored event after proof without another event append
+or head write.
 
-The diagram does not claim authentication, search, model integration, physical
-deletion, immutable storage against a database owner, or end-to-end stdout
-delivery.
+The diagram does not claim authentication, a persistent search index, model
+integration, physical deletion, immutable storage against a database owner, or
+end-to-end stdout delivery.
 
 ### Failure and retry state machine
 
