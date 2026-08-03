@@ -565,14 +565,15 @@ def _canonical_evidence(document: contract.JsonObject) -> bytes:
     return contract.canonical_json_bytes(document)
 
 
-def test_portable_runtime_allowlist_is_exact_and_accepts_only_runtime_versions() -> None:
+def test_portable_recapture_allowlist_is_exact_and_accepts_only_environment_provenance() -> None:
     expected_paths = (
         ("provenance", "builder", "python_version"),
         ("provenance", "installation", "pip_version"),
         ("provenance", "installation", "python_version"),
         ("provenance", "installation", "sqlite_version"),
+        ("provenance", "wheel", "sha256"),
     )
-    assert expected_paths == capture.PORTABLE_RUNTIME_PROVENANCE_PATHS
+    assert expected_paths == capture.PORTABLE_RECAPTURE_PROVENANCE_PATHS
 
     committed = valid_document()
     recaptured = copy.deepcopy(committed)
@@ -580,6 +581,7 @@ def test_portable_runtime_allowlist_is_exact_and_accepts_only_runtime_versions()
     _set_document_path(recaptured, expected_paths[1], "26.1.2")
     _set_document_path(recaptured, expected_paths[2], "3.12.13")
     _set_document_path(recaptured, expected_paths[3], "3.46.1")
+    _set_document_path(recaptured, expected_paths[4], "a" * 64)
 
     capture._check_portable_runtime_evidence(
         _canonical_evidence(committed),
@@ -594,7 +596,7 @@ def test_portable_runtime_allowlist_is_exact_and_accepts_only_runtime_versions()
         (("provenance", "source_archive", "sha256"), "a" * 64),
         (("provenance", "capture_inputs", "sha256"), "a" * 64),
         (("provenance", "wheel", "record_sha256"), "a" * 64),
-        (("provenance", "wheel", "sha256"), "a" * 64),
+        (("provenance", "wheel", "size_bytes"), 44_116),
         (("provenance", "installation", "installed_files_sha256"), "a" * 64),
         (("provenance", "builder", "build_version"), "9.9.9"),
     ],
@@ -607,7 +609,7 @@ def test_portable_runtime_comparison_rejects_nonallowlisted_provenance_drift(
     recaptured = copy.deepcopy(committed)
     _set_document_path(recaptured, path, replacement)
 
-    with pytest.raises(capture.CaptureError, match="outside portable runtime provenance"):
+    with pytest.raises(capture.CaptureError, match="outside portable recapture provenance"):
         capture._check_portable_runtime_evidence(
             _canonical_evidence(committed),
             _canonical_evidence(recaptured),

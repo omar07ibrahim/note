@@ -40,13 +40,14 @@ ARTIFACTS_DIRECTORY: Final = ROOT / "artifacts"
 EXPECTED_WHEEL_NAME: Final = "recall_ledger-0.1.0-py3-none-any.whl"
 EXPECTED_BUILD_VERSION: Final = "1.3.0"
 EXPECTED_SETUPTOOLS_VERSION: Final = "83.0.0"
-PORTABLE_RUNTIME_PROVENANCE_PATHS: Final = (
+PORTABLE_RECAPTURE_PROVENANCE_PATHS: Final = (
     ("provenance", "builder", "python_version"),
     ("provenance", "installation", "pip_version"),
     ("provenance", "installation", "python_version"),
     ("provenance", "installation", "sqlite_version"),
+    ("provenance", "wheel", "sha256"),
 )
-_PORTABLE_RUNTIME_SENTINEL: Final = "<PORTABLE_RUNTIME_PROVENANCE>"
+_PORTABLE_RECAPTURE_SENTINEL: Final = "<PORTABLE_RECAPTURE_PROVENANCE>"
 _PYTHON_SERIES_COMPONENTS: Final = 2
 EXPECTED_WHEEL_FILES: Final = frozenset(
     {
@@ -1597,21 +1598,21 @@ def _portable_python_series(document: contract.JsonObject, *, context: str) -> t
     return _python_major_minor(builder_python, context=f"{context} Python version")
 
 
-def _mask_portable_runtime_provenance(
+def _mask_portable_recapture_provenance(
     document: contract.JsonObject,
 ) -> contract.JsonObject:
     masked = copy.deepcopy(document)
-    for path in PORTABLE_RUNTIME_PROVENANCE_PATHS:
+    for path in PORTABLE_RECAPTURE_PROVENANCE_PATHS:
         parent = masked
         for component in path[:-1]:
             child = parent.get(component)
             if not isinstance(child, dict):
-                _fail("portable runtime provenance path is absent from validated evidence")
+                _fail("portable recapture provenance path is absent from validated evidence")
             parent = child
         leaf = path[-1]
         if not isinstance(parent.get(leaf), str):
-            _fail("portable runtime provenance field is absent from validated evidence")
-        parent[leaf] = _PORTABLE_RUNTIME_SENTINEL
+            _fail("portable recapture provenance field is absent from validated evidence")
+        parent[leaf] = _PORTABLE_RECAPTURE_SENTINEL
     return masked
 
 
@@ -1623,13 +1624,13 @@ def _check_portable_runtime_evidence(committed: bytes, recaptured: bytes) -> Non
     if recaptured_series != committed_series:
         _fail("portable runtime check requires the recorded Python major.minor series")
     committed_comparable = contract.canonical_json_bytes(
-        _mask_portable_runtime_provenance(committed_document)
+        _mask_portable_recapture_provenance(committed_document)
     )
     recaptured_comparable = contract.canonical_json_bytes(
-        _mask_portable_runtime_provenance(recaptured_document)
+        _mask_portable_recapture_provenance(recaptured_document)
     )
     if recaptured_comparable != committed_comparable:
-        _fail("committed CLI evidence differs outside portable runtime provenance")
+        _fail("committed CLI evidence differs outside portable recapture provenance")
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -1642,7 +1643,7 @@ def _parser() -> argparse.ArgumentParser:
     mode.add_argument(
         "--check-portable-runtime",
         action="store_true",
-        help=("recapture and compare except the explicit runtime-version provenance allowlist"),
+        help=("recapture and compare except the explicit environment provenance allowlist"),
     )
     parser.add_argument(
         "--source-commit",

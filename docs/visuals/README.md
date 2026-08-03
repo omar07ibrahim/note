@@ -144,10 +144,12 @@ rewriting them:
 Byte-exact recapture intentionally requires the recorded Python, pip, and
 SQLite versions because those values are provenance. CI executes the same
 installed-wheel workflow with `--check-portable-runtime`: both documents still
-pass the full evidence contract and every field must match except the four
-explicit builder/installation runtime-version leaves. Builder and installed
-Python must agree, and recapture must remain in the recorded Python major.minor
-series.
+pass the full evidence contract and every field must match except four explicit
+builder/installation runtime-version leaves and the raw wheel ZIP-envelope
+digest. Builder and installed Python must agree, and recapture must remain in
+the recorded Python major.minor series. Wheel size, exact `RECORD`, every member
+digest, installed package manifest, console entry point, workflow output, and
+verification result remain exact; only compression/container bytes may vary.
 
 The installed RecallLedger runtime remains dependency-free; capture uses only
 the pinned local build toolchain around it. It bounds Git archives, wheels,
