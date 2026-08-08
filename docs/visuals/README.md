@@ -1,47 +1,65 @@
 # RecallLedger source-bound visuals
 
-This directory contains three evidence classes. The terminal panels are
-rendered from a validated run of the console script installed from a
-clean-source wheel. The evaluation figures are computed from one frozen,
-hash-bound lexical suite. Architecture and failure diagrams are generated from
-bounded, versioned JSON sources and checked against current Python, packaging,
-and written contracts. None of these artifacts is a latency measurement or a
-production benchmark.
+This directory contains three evidence classes. Installed-wheel evidence
+includes complete raster, ordered motion, and focused vector projections of one
+validated console-script run from a clean-source wheel. Evaluation figures are
+computed from one frozen, hash-bound lexical suite. Architecture and failure
+diagrams are generated from bounded, versioned JSON sources and checked against
+current Python, packaging, and written contracts. None of these artifacts is a
+latency measurement or a production benchmark.
 
 ## Artifacts
+
+### Complete installed-wheel transcript
+
+![Complete normalized ten-command installed-wheel transcript](installed-wheel-cli.png)
+
+The 1920px PNG shows all ten normalized commands and every stdout, stderr, and
+exit record from the verified run. It is deterministic text rendering from
+synthetic fixtures, not an OS-terminal screenshot.
+
+### Five-phase installed-wheel workflow
+
+![Five-phase installed-wheel workflow](installed-wheel-workflow.gif)
+
+Five full-canvas frames cover each verified step exactly once: create/replay,
+revise/stale rejection, head/history page one, history continuation/tombstone,
+and hidden live read/retained audit head. The timing is presentation-only; this
+is a deliberate workflow playback, not measured execution or an incident.
 
 ### Installed-wheel write, replay, and conflict
 
 ![Installed-wheel create, exact replay, revision conflict, and head proof](installed-wheel-write-replay.svg)
 
-This is the normalized transcript of steps 1–5 from a real isolated run:
-create revision 1, replay the exact command without another append, revise to
-revision 2, reject a fresh stale command with `REVISION_CONFLICT` and exit 11,
-then read the unchanged head.
+This focused vector panel covers steps 1–5: create revision 1, replay the exact
+command without another append, revise to revision 2, reject a fresh stale
+command with `REVISION_CONFLICT` and exit 11, then read the unchanged head.
 
 ### Installed-wheel paging and logical deletion
 
 ![Installed-wheel bounded history, JSONL continuation, tombstone, live get, and audit head](installed-wheel-history-tombstone.svg)
 
-Steps 6–10 read bounded history as JSON and JSONL, append a content-free
-tombstone at revision 3, prove that live `get` hides the note, and prove that
-the audit `head` retains the linked terminal event.
+The second vector panel covers steps 6–10: bounded history as JSON and JSONL, a
+content-free revision 3 tombstone, a live `get` that hides the note, and an
+audit `head` that retains the linked terminal event.
 
-The [canonical evidence document](evidence/installed-wheel-cli.v1.json)
-records every normalized argv, stdout and stderr record, exit code, fixture
-hash, verification assertion, source commit and tree, capture-input manifest,
-source archive hash, builder version, wheel and `RECORD` hash, installed-file
-digest, and normalized console-wrapper digest. Before normalization, the
-capture contract validates exact argv and channel bytes, recomputes all event
-hashes independently, checks cross-step state and pagination, and asks the
-installed wheel to decode the raw event envelopes.
+The [canonical evidence document](evidence/installed-wheel-cli.v1.json) records
+every normalized argv, channel record, exit, fixture hash, verification
+assertion, source commit/tree, capture-input manifest, source archive, builder,
+wheel, `RECORD`, and installed-file digest. The
+[generated manifest](installed-wheel-media.manifest.json) binds all six hosted
+outputs and five renderer inputs without self-including. The separate
+[adoption record](evidence/installed-wheel-media.adoption.json) preserves the
+reviewed run, artifact, archive digest, entry hashes/modes, and honest review
+boundary; it is not a signature or proof of authorship.
 
-Only the run-specific note ID, three event digests, three storage-owned
-microsecond timestamps, and temporary filesystem paths are normalized. The
-tenant ID, command IDs, fixture content, operations, response fields, failure
-code, retry guidance, and exit codes remain exact. The panels do not claim
-authentication, physical deletion, immutable storage against its owner,
-retrieval quality, or measured performance.
+Before normalization, the capture contract validates exact argv and channel
+bytes, recomputes all event hashes independently, checks cross-step state and
+pagination, and asks the installed wheel to decode raw event envelopes. Only
+the run-specific note ID, three event digests, three storage-owned microsecond
+timestamps, and temporary paths are normalized. No view claims authentication,
+physical deletion, owner-resistant immutability, retrieval quality, or measured
+performance.
 
 ### Frozen lexical conformance scorecard
 
@@ -118,46 +136,62 @@ failure rates or a recorded terminal session.
 
 ## Regeneration
 
-### Installed-wheel evidence
+### Installed-wheel evidence and media
 
-Evidence updates use two commits so the recorded source commit cannot
-self-reference its own generated document. First commit and verify the runtime,
-fixtures, and three evidence tools. From that clean implementation commit, run:
+Installed-wheel evidence uses a two-stage, non-self-referential workflow. The
+first commit freezes runtime code, fixtures, capture/render tools, the hosted CI
+contract, and exact visual-only dependency lock. CI then checks out that commit
+explicitly, builds and installs its wheel in isolation, captures the ten-command
+scenario, renders the exact six-file bundle twice, proves both bundles are
+byte-identical, and uploads the first bundle.
+
+A separate review verifies the hosted archive inventory, modes, hashes, source
+and renderer provenance, privacy boundary, PNG, all GIF frame structures, the
+first GIF frame visually, and both self-contained SVGs. Only then does a second
+commit adopt the exact hosted bytes plus an independent adoption record. Later
+CI reads the recorded source commit/tree, repeats the isolated capture and
+render, and compares all six generated files byte-for-byte with the adoption.
+
+To rerender the already captured source locally on exact CPython 3.12.3, keep
+Pillow outside the runtime environment and use an isolated output directory:
 
 ```bash
-SOURCE_COMMIT="$(git rev-parse HEAD)"
-.venv/bin/python tools/capture_cli_evidence.py \
-  --source-commit "$SOURCE_COMMIT" \
-  --write
-.venv/bin/python tools/render_cli_evidence.py --write
+python3.12 -m venv .visual-venv
+.visual-venv/bin/python -m pip install --require-hashes -r requirements-visuals.lock
+MEDIA_OUT="$(mktemp -d)"
+.visual-venv/bin/python tools/render_cli_media.py \
+  --write --output-directory "$MEDIA_OUT"
+.visual-venv/bin/python tools/render_cli_media.py \
+  --check --output-directory "$MEDIA_OUT"
+cmp "$MEDIA_OUT/installed-wheel-cli.v1.json" \
+  docs/visuals/evidence/installed-wheel-cli.v1.json
+for name in installed-wheel-write-replay.svg \
+  installed-wheel-history-tombstone.svg installed-wheel-cli.png \
+  installed-wheel-workflow.gif installed-wheel-media.manifest.json
+do
+  cmp "$MEDIA_OUT/$name" "docs/visuals/$name"
+done
 ```
 
-Then review and commit the JSON, both SVG files, and their documentation.
-Rebuild the installed wheel and compare all three committed artifacts without
-rewriting them:
+The renderer requires CPython 3.12.3, Pillow 12.3.0 from the one hash-locked
+Linux wheel, and Pillow's embedded Aileron Regular font. It emits the evidence
+JSON, both SVGs, PNG, GIF, and acyclic manifest; writes are atomic 0644 regular
+files. The installed RecallLedger runtime remains dependency-free. The hosted
+job is authoritative for recapture because it reconstructs the recorded source
+commit rather than treating adopted files as their own source.
+
+For the standard-library evidence and vector checks, run:
 
 ```bash
 .venv/bin/python tools/capture_cli_evidence.py --check
 .venv/bin/python tools/render_cli_evidence.py --check
 ```
 
-Byte-exact recapture intentionally requires the recorded Python, pip, and
-SQLite versions because those values are provenance. CI executes the same
-installed-wheel workflow with `--check-portable-runtime`: both documents still
-pass the full evidence contract and every field must match except four explicit
-builder/installation runtime-version leaves and the raw wheel ZIP-envelope
-digest. Builder and installed Python must agree, and recapture must remain in
-the recorded Python major.minor series. Wheel size, exact `RECORD`, every member
-digest, installed package manifest, console entry point, workflow output, and
-verification result remain exact; only compression/container bytes may vary.
-
-The installed RecallLedger runtime remains dependency-free; capture uses only
-the pinned local build toolchain around it. It bounds Git archives, wheels,
-`RECORD`, subprocess input and combined output, canonical JSON/JSONL, installed
-files, and all document collections. It uses a private descriptor-pinned
-workspace, sanitized environment, offline installation, no-follow reads and
-atomic public-mode writes. Every subprocess receives its own session; timeout,
-error, and normal completion clean up remaining group members.
+Byte-exact capture intentionally records Python, pip, SQLite, builder, source
+archive, wheel, `RECORD`, installed files, wrapper, argv/channels, and all
+verification results. Portable-runtime CI permits only the four documented
+builder/installation runtime-version leaves and the wheel ZIP-envelope digest
+to vary; the semantic and installed-file contracts remain exact.
 
 ### Architecture and failure diagrams
 
@@ -234,6 +268,10 @@ The canonical sources are:
 - `../../evals/lexical-v1/queries.v1.json`
 - `../../evals/lexical-v1/expected.v1.json`
 
+The generated `installed-wheel-media.manifest.json` and reviewed
+`evidence/installed-wheel-media.adoption.json` are provenance records, not new
+runtime claims or self-authenticating attestations.
+
 The evidence document has its own closed cross-step contract. Every lane, node,
 edge, and note in the three diagram sources references a binding. Tests resolve
 those bindings against the named Python AST definition, literal constant,
@@ -242,5 +280,5 @@ visual-tree allowlist prevents unbound JSON, Markdown, or SVG files from
 entering the package. The sdist gate also checks normalized file modes,
 extracts a clean source archive, imports all three renderers, and checks all
 eight committed SVG files byte-for-byte. When a bound behavior changes, update
-the source or capture, regenerate its SVG, and keep the code and visual change
-in reviewable commits.
+the source or capture, regenerate its evidence, and keep contract and adoption
+changes in separate reviewable commits.

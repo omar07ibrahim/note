@@ -224,31 +224,45 @@ data sources for these three SVGs.
 
 ## Verified installed-wheel workflow
 
-These are rendered from a real ten-command run of the installed console script,
-not a hand-written mock terminal. The capture starts from a clean Git archive,
-builds one wheel with the pinned toolchain, installs it offline into an empty
-virtual environment, externally hashes the installed package and wrapper, and
-then validates raw stdout, stderr, exit codes, event hashes, replay, paging,
-conflict, and tombstone semantics before any normalization.
+These raster, motion, and vector views all project one real ten-command run of
+the installed console script, not hand-written mock output. The capture starts
+from a clean Git archive, builds one wheel with the pinned toolchain, installs
+it offline into an empty virtual environment, externally hashes the installed
+package and wrapper, and validates raw stdout, stderr, exits, event links,
+replay, paging, conflict, and tombstone semantics before normalization.
+
+![Complete normalized ten-command installed-wheel transcript](docs/visuals/installed-wheel-cli.png)
+
+The PNG contains all ten commands and every normalized stdout, stderr, and exit
+record. It is deterministic text rendering from synthetic fixtures, not an
+OS-terminal screenshot.
+
+![Five-phase installed-wheel workflow from create through tombstone audit](docs/visuals/installed-wheel-workflow.gif)
+
+The GIF groups the same verified records into five ordered phases of two
+commands each. It is a deliberate workflow playback, not an incident recording.
 
 ![Installed-wheel create, exact replay, revision conflict, and head proof](docs/visuals/installed-wheel-write-replay.svg)
 
-The first panel proves create, exact-command idempotent replay of the same
-stored event, revision 2, a rejected stale revision with exit 11, and an
+The first detail panel proves create, exact-command idempotent replay of the
+same stored event, revision 2, a rejected stale revision with exit 11, and an
 unchanged head.
 
 ![Installed-wheel bounded history, JSONL continuation, tombstone, live get, and audit head](docs/visuals/installed-wheel-history-tombstone.svg)
 
-The second panel proves bounded JSON/JSONL history continuation, a content-free
-revision 3 tombstone, a live read that hides the deleted note, and an audit head
-that retains the terminal event.
+The second detail panel proves bounded JSON/JSONL history continuation, a
+content-free revision 3 tombstone, a live read that hides the deleted note, and
+an audit head that retains the terminal event.
 
 Only the run-specific note ID, three event digests, three microsecond
 timestamps, and temporary filesystem paths are normalized. The complete
-normalized canonical transcript, source commit and tree, capture-input
-manifest, wheel and `RECORD` hashes, builder versions, installed-file digest,
-and verification assertions are reviewable in
-[the evidence JSON](docs/visuals/evidence/installed-wheel-cli.v1.json).
+canonical records and capture provenance are in
+[the evidence JSON](docs/visuals/evidence/installed-wheel-cli.v1.json). The
+[generated media manifest](docs/visuals/installed-wheel-media.manifest.json)
+pins every hosted output and renderer input; the separate
+[adoption review record](docs/visuals/evidence/installed-wheel-media.adoption.json)
+ties those exact six bytes to the reviewed workflow run and archive digest. The
+record is review provenance, not a signature or cryptographic attestation.
 
 ## Source-bound architecture and failure behavior
 
@@ -279,6 +293,8 @@ python -m pytest
 python -m ruff check .
 python -m ruff format --check .
 python -m mypy src tests tools
+python tools/render_visuals.py --check
+python tools/render_cli_evidence.py --check
 python tools/lexical_eval_contract.py
 python tools/render_lexical_eval_visuals.py --check
 ```
