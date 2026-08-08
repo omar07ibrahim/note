@@ -96,6 +96,7 @@ def test_visual_dependency_is_exact_lazy_and_absent_from_runtime_dependencies() 
     )
     assert not any(module == "PIL" or module.startswith("PIL.") for module in imported_modules)
     assert 'importlib.import_module("PIL.Image")' in source
+    assert 'sys.implementation.name != "cpython"' in source
     assert render_cli_media.EXPECTED_PYTHON == (3, 12, 3)
     assert render_cli_media.EXPECTED_PILLOW_VERSION == "12.3.0"
     assert render_cli_media.EXPECTED_FONT_NAME == ("Aileron", "Regular")
@@ -116,7 +117,7 @@ def test_hosted_media_job_is_source_explicit_hash_locked_and_adoption_aware() ->
         "requirements-visuals.lock",
         "python tools/capture_cli_evidence.py",
         "python tools/render_cli_evidence.py --write",
-        "python tools/render_cli_media.py",
+        'python "$source_root/tools/render_cli_media.py"',
         "Compare the two byte-identical six-file bundles",
         "Compare replay with adopted installed-wheel media",
         "installed-wheel-media-",
@@ -129,3 +130,7 @@ def test_hosted_media_job_is_source_explicit_hash_locked_and_adoption_aware() ->
     assert "permissions:\n  contents: read" in workflow
     assert "github.event.pull_request.head.sha || github.sha" in workflow
     assert "^[0-9a-f]{40}$" in workflow
+    assert 'git -C "$source_root" diff --name-only | LC_ALL=C sort' in workflow
+    assert 'git -C "$source_root" diff --cached --name-only' in workflow
+    assert "ls-files --others --exclude-standard" in workflow
+    assert "grep -v '^ M docs/visuals/'" not in workflow

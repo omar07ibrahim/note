@@ -255,7 +255,7 @@ def workflow_frames(
 
 
 def _pillow_modules() -> tuple[Any, Any, Any]:
-    if sys.version_info[:3] != EXPECTED_PYTHON:
+    if sys.implementation.name != "cpython" or sys.version_info[:3] != EXPECTED_PYTHON:
         _fail("media renderer requires exact CPython 3.12.3")
     try:
         pillow_version = metadata.version("Pillow")

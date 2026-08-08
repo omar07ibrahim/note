@@ -227,11 +227,7 @@ jobs:
           assert len(evidence["steps"]) == 10
           PY
           actual="$(
-            git -C "$source_root" diff --name-only -- \
-              docs/visuals/evidence/installed-wheel-cli.v1.json \
-              docs/visuals/installed-wheel-history-tombstone.svg \
-              docs/visuals/installed-wheel-write-replay.svg \
-              | LC_ALL=C sort
+            git -C "$source_root" diff --name-only | LC_ALL=C sort
           )"
           expected="$(
             printf '%s\n' \
@@ -241,10 +237,24 @@ jobs:
           )"
           test "$actual" = "$expected"
           test -z "$(
-            git -C "$source_root" status --porcelain=v1 --untracked-files=all \
-              | grep -v '^ M docs/visuals/' \
-              || true
+            git -C "$source_root" diff --cached --name-only
           )"
+          untracked="$(
+            git -C "$source_root" ls-files --others --exclude-standard \
+              | LC_ALL=C sort
+          )"
+          test -z "$untracked"
+          actual_status="$(
+            git -C "$source_root" status --porcelain=v1 --untracked-files=all \
+              | LC_ALL=C sort
+          )"
+          expected_status="$(
+            printf '%s\n' \
+              ' M docs/visuals/evidence/installed-wheel-cli.v1.json' \
+              ' M docs/visuals/installed-wheel-history-tombstone.svg' \
+              ' M docs/visuals/installed-wheel-write-replay.svg'
+          )"
+          test "$actual_status" = "$expected_status"
 
       - name: Render the exact six-file bundle twice
         run: |
