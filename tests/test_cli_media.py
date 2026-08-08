@@ -3,8 +3,6 @@ from __future__ import annotations
 import ast
 import tomllib
 from pathlib import Path
-from typing import cast
-
 from tools import cli_evidence_contract as contract
 from tools import render_cli_evidence, render_cli_media
 
@@ -76,9 +74,7 @@ def test_visual_dependency_is_exact_lazy_and_absent_from_runtime_dependencies() 
     source = (ROOT / "tools/render_cli_media.py").read_text(encoding="utf-8")
     tree = ast.parse(source)
     imported_modules = {
-        (cast(ast.ImportFrom, node).module or "")
-        for node in ast.walk(tree)
-        if isinstance(node, ast.ImportFrom)
+        (node.module or "") for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)
     }
     imported_modules.update(
         alias.name
