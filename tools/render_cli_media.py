@@ -63,12 +63,9 @@ EXPECTED_PYTHON: Final = (3, 12, 3)
 EXPECTED_PILLOW_VERSION: Final = "12.3.0"
 EXPECTED_FONT_NAME: Final = ("Aileron", "Regular")
 EXPECTED_WHEEL_FILENAME: Final = (
-    "pillow-12.3.0-cp312-cp312-manylinux_2_27_x86_64."
-    "manylinux_2_28_x86_64.whl"
+    "pillow-12.3.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl"
 )
-EXPECTED_WHEEL_SHA256: Final = (
-    "78cb2c6865a35ab8ff8b75fd122f6033b92a62c82801110e48ddd6c936a45d91"
-)
+EXPECTED_WHEEL_SHA256: Final = "78cb2c6865a35ab8ff8b75fd122f6033b92a62c82801110e48ddd6c936a45d91"
 PNG_WIDTH: Final = 1920
 GIF_WIDTH: Final = 1600
 HEADER_HEIGHT: Final = 164
@@ -159,9 +156,7 @@ def _atomic_write(output_directory: Path, filename: str, payload: bytes) -> None
             existing = os.stat(filename, dir_fd=directory, follow_symlinks=False)
         except FileNotFoundError:
             existing = None
-        if existing is not None and (
-            not stat.S_ISREG(existing.st_mode) or existing.st_nlink != 1
-        ):
+        if existing is not None and (not stat.S_ISREG(existing.st_mode) or existing.st_nlink != 1):
             _fail("media output is not one regular single-link file")
         descriptor = os.open(temporary_name, _WRITE_FLAGS, 0o644, dir_fd=directory)
         offset = 0
@@ -640,8 +635,7 @@ def _security_check(payloads: dict[str, bytes]) -> None:
     for filename in render_cli_evidence.OUTPUT_NAMES:
         text = payloads[filename].replace(b"http://www.w3.org/2000/svg", b"").lower()
         if any(
-            token in text
-            for token in (b"<script", b"<image", b"foreignobject", b"href=", b"://")
+            token in text for token in (b"<script", b"<image", b"foreignobject", b"href=", b"://")
         ):
             _fail("terminal SVG contains an executable or external asset")
 

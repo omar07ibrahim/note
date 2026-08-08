@@ -55,14 +55,9 @@ def test_media_bundle_contract_is_bounded_acyclic_and_maps_only_reviewed_paths()
     assert render_cli_media.ADOPTED_PATHS["installed-wheel-cli.v1.json"] == (
         "docs/visuals/evidence/installed-wheel-cli.v1.json"
     )
-    assert all(
-        path.startswith("docs/visuals/")
-        for path in render_cli_media.ADOPTED_PATHS.values()
-    )
+    assert all(path.startswith("docs/visuals/") for path in render_cli_media.ADOPTED_PATHS.values())
     covered_indexes = tuple(
-        index
-        for _title, indexes in render_cli_media.FRAME_SPECS
-        for index in indexes
+        index for _title, indexes in render_cli_media.FRAME_SPECS for index in indexes
     )
     assert covered_indexes == tuple(range(10))
     assert len(render_cli_media.GIF_DURATIONS_MS) == len(render_cli_media.FRAME_SPECS)
@@ -75,10 +70,7 @@ def test_visual_dependency_is_exact_lazy_and_absent_from_runtime_dependencies() 
 
     lock = (ROOT / "requirements-visuals.lock").read_text(encoding="utf-8")
     assert "pillow==12.3.0" in lock
-    assert (
-        "sha256:78cb2c6865a35ab8ff8b75fd122f6033b92a62c82801110e48ddd6c936a45d91"
-        in lock
-    )
+    assert "sha256:78cb2c6865a35ab8ff8b75fd122f6033b92a62c82801110e48ddd6c936a45d91" in lock
     assert lock.count("--hash=") == 1
 
     source = (ROOT / "tools/render_cli_media.py").read_text(encoding="utf-8")
