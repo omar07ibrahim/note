@@ -4,6 +4,8 @@ import ast
 import tomllib
 from pathlib import Path
 
+import pytest
+
 from tools import cli_evidence_contract as contract
 from tools import render_cli_evidence, render_cli_media
 
@@ -61,6 +63,57 @@ def test_media_bundle_contract_is_bounded_acyclic_and_maps_only_reviewed_paths()
     assert covered_indexes == tuple(range(10))
     assert len(render_cli_media.GIF_DURATIONS_MS) == len(render_cli_media.FRAME_SPECS)
     assert render_cli_media.MAX_BUNDLE_BYTES == 24 * 1024 * 1024
+
+
+def test_media_geometry_bounds_png_and_every_gif_phase_before_the_footer() -> None:
+    document = _document()
+    png_lines = render_cli_evidence.transcript_lines(document, range(10))
+    gif_frames = render_cli_media.workflow_frames(document)
+    gif_capacity = max(len(lines) for _title, lines in gif_frames)
+    cases: list[tuple[int, int, int]] = [
+        (len(png_lines), render_cli_media.PNG_LINE_HEIGHT, len(png_lines))
+    ]
+    cases.extend(
+        (len(lines), render_cli_media.GIF_LINE_HEIGHT, gif_capacity) for _title, lines in gif_frames
+    )
+
+    assert len(cases) == 1 + len(render_cli_media.FRAME_SPECS)
+    for line_count, line_height, canvas_line_count in cases:
+        geometry = render_cli_media._canvas_geometry(
+            line_count,
+            line_height=line_height,
+            canvas_line_count=canvas_line_count,
+        )
+        assert geometry.height == render_cli_media._canvas_height(
+            canvas_line_count, line_height=line_height
+        )
+        assert geometry.terminal_top == (
+            render_cli_media.HEADER_HEIGHT + render_cli_media.TERMINAL_OUTER_TOP_GAP
+        )
+        assert geometry.first_line_top == (
+            geometry.terminal_top + render_cli_media.TERMINAL_TOP_PAD
+        )
+        assert geometry.last_line_top == (geometry.first_line_top + (line_count - 1) * line_height)
+        assert geometry.last_line_top + line_height == geometry.last_line_box_bottom
+        assert geometry.last_line_box_bottom <= (
+            geometry.terminal_bottom - render_cli_media.TERMINAL_LINE_BOTTOM_CLEARANCE
+        )
+        assert geometry.terminal_bottom + render_cli_media.TERMINAL_OUTER_BOTTOM_GAP == (
+            geometry.footer_top
+        )
+        assert geometry.footer_top <= geometry.footer_text_top < geometry.height
+
+
+def test_media_security_ignores_binary_escape_coincidence_but_rejects_textual_ansi() -> None:
+    payloads = dict.fromkeys(render_cli_media.OUTPUT_NAMES, b"safe\n")
+    payloads[render_cli_media.PNG_NAME] = b"\x89PNG\r\n\x1a\nbinary-\x1b-byte"
+    payloads[render_cli_media.GIF_NAME] = b"GIF89a-binary-\x1b-byte"
+
+    render_cli_media._security_check(payloads)
+
+    payloads["installed-wheel-cli.v1.json"] = b'{"ansi":"\x1b[31m"}\n'
+    with pytest.raises(render_cli_media.MediaRenderError, match="contains a control byte"):
+        render_cli_media._security_check(payloads)
 
 
 def test_visual_dependency_is_exact_lazy_and_absent_from_runtime_dependencies() -> None:

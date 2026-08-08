@@ -17,7 +17,7 @@ import sys
 from collections.abc import Sequence
 from importlib import metadata
 from pathlib import Path
-from typing import Any, Final, NoReturn, cast
+from typing import Any, Final, NamedTuple, NoReturn, cast
 
 ROOT: Final = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -37,6 +37,11 @@ PAYLOAD_NAMES: Final = (
     GIF_NAME,
 )
 OUTPUT_NAMES: Final = (*PAYLOAD_NAMES, MANIFEST_NAME)
+TEXT_OUTPUT_NAMES: Final = (
+    "installed-wheel-cli.v1.json",
+    *render_cli_evidence.OUTPUT_NAMES,
+    MANIFEST_NAME,
+)
 ADOPTED_PATHS: Final = {
     "installed-wheel-cli.v1.json": "docs/visuals/evidence/installed-wheel-cli.v1.json",
     "installed-wheel-write-replay.svg": "docs/visuals/installed-wheel-write-replay.svg",
@@ -72,8 +77,12 @@ HEADER_HEIGHT: Final = 164
 FOOTER_HEIGHT: Final = 94
 PNG_LINE_HEIGHT: Final = 24
 GIF_LINE_HEIGHT: Final = 20
+TERMINAL_OUTER_TOP_GAP: Final = 24
+TERMINAL_OUTER_BOTTOM_GAP: Final = 20
 TERMINAL_TOP_PAD: Final = 58
 TERMINAL_BOTTOM_PAD: Final = 28
+TERMINAL_LINE_BOTTOM_CLEARANCE: Final = 8
+FOOTER_TEXT_TOP_INSET: Final = 30
 GIF_DURATIONS_MS: Final = (1000, 1000, 1000, 1000, 1600)
 MAX_SOURCE_BYTES: Final = 524_288
 MAX_MEDIA_BYTES: Final = 8 * 1024 * 1024
@@ -285,14 +294,60 @@ def _provenance(document: contract.JsonObject) -> tuple[str, str]:
     return cast(str, provenance["source_commit"]), cast(str, wheel["sha256"])
 
 
-def _canvas_height(line_count: int, *, line_height: int) -> int:
-    return (
-        HEADER_HEIGHT
+class CanvasGeometry(NamedTuple):
+    """Exact terminal-panel, line-cell, and footer boundaries."""
+
+    height: int
+    terminal_top: int
+    terminal_bottom: int
+    first_line_top: int
+    last_line_top: int
+    last_line_box_bottom: int
+    footer_top: int
+    footer_text_top: int
+
+
+def _canvas_geometry(
+    line_count: int,
+    *,
+    line_height: int,
+    canvas_line_count: int | None = None,
+) -> CanvasGeometry:
+    canvas_lines = line_count if canvas_line_count is None else canvas_line_count
+    if line_count <= 0 or line_height <= 0 or canvas_lines < line_count:
+        _fail("media canvas line geometry is invalid")
+    terminal_top = HEADER_HEIGHT + TERMINAL_OUTER_TOP_GAP
+    height = (
+        terminal_top
         + TERMINAL_TOP_PAD
-        + line_count * line_height
+        + canvas_lines * line_height
         + TERMINAL_BOTTOM_PAD
         + FOOTER_HEIGHT
     )
+    terminal_bottom = height - FOOTER_HEIGHT - TERMINAL_OUTER_BOTTOM_GAP
+    first_line_top = terminal_top + TERMINAL_TOP_PAD
+    last_line_top = first_line_top + (line_count - 1) * line_height
+    last_line_box_bottom = last_line_top + line_height
+    footer_top = height - FOOTER_HEIGHT
+    footer_text_top = footer_top + FOOTER_TEXT_TOP_INSET
+    if last_line_box_bottom > terminal_bottom - TERMINAL_LINE_BOTTOM_CLEARANCE:
+        _fail("media canvas line geometry exceeds the terminal panel")
+    if terminal_bottom + TERMINAL_OUTER_BOTTOM_GAP != footer_top:
+        _fail("media canvas terminal and footer geometry is inconsistent")
+    return CanvasGeometry(
+        height=height,
+        terminal_top=terminal_top,
+        terminal_bottom=terminal_bottom,
+        first_line_top=first_line_top,
+        last_line_top=last_line_top,
+        last_line_box_bottom=last_line_box_bottom,
+        footer_top=footer_top,
+        footer_text_top=footer_text_top,
+    )
+
+
+def _canvas_height(line_count: int, *, line_height: int) -> int:
+    return _canvas_geometry(line_count, line_height=line_height).height
 
 
 def _draw_canvas(  # noqa: PLR0913 - explicit fixed rendering contract
@@ -301,16 +356,22 @@ def _draw_canvas(  # noqa: PLR0913 - explicit fixed rendering contract
     draw_module: Any,
     font_module: Any,
     width: int,
-    height: int,
     title: str,
     subtitle: str,
     source_commit: str,
     wheel_digest: str,
     lines: tuple[tuple[str, str], ...],
     line_height: int,
+    canvas_line_count: int,
     body_size: int,
     footer: str,
 ) -> Any:
+    geometry = _canvas_geometry(
+        len(lines),
+        line_height=line_height,
+        canvas_line_count=canvas_line_count,
+    )
+    height = geometry.height
     image = image_module.new("RGB", (width, height), "#f7f9fc")
     draw = draw_module.Draw(image)
     title_font = font_module.load_default(size=30)
@@ -334,8 +395,8 @@ def _draw_canvas(  # noqa: PLR0913 - explicit fixed rendering contract
 
     terminal_left = 48
     terminal_right = width - 48
-    terminal_top = HEADER_HEIGHT + 24
-    terminal_bottom = height - FOOTER_HEIGHT - 20
+    terminal_top = geometry.terminal_top
+    terminal_bottom = geometry.terminal_bottom
     draw.rounded_rectangle(
         (terminal_left, terminal_top, terminal_right, terminal_bottom),
         radius=14,
@@ -354,17 +415,29 @@ def _draw_canvas(  # noqa: PLR0913 - explicit fixed rendering contract
     )
 
     x = terminal_left + 24
-    y = terminal_top + TERMINAL_TOP_PAD
+    y = geometry.first_line_top
     for line, kind in lines:
         if line:
             bounds = draw.textbbox((x, y), line, font=body_font)
             if bounds[2] > terminal_right - 20:
                 _fail("terminal raster line exceeds the verified canvas width")
+            if bounds[1] < y or bounds[3] > y + line_height:
+                _fail("terminal raster line exceeds its verified line-cell height")
+            if bounds[3] > terminal_bottom - TERMINAL_LINE_BOTTOM_CLEARANCE:
+                _fail("terminal raster line exceeds the verified canvas height")
             draw.text((x, y), line, font=body_font, fill=_line_color(kind))
         y += line_height
-    if y > terminal_bottom - 8:
+    if y != geometry.last_line_box_bottom or y > terminal_bottom - TERMINAL_LINE_BOTTOM_CLEARANCE:
         _fail("terminal raster lines exceed the verified canvas height")
-    draw.text((48, height - 64), footer, font=footer_font, fill="#405166")
+    footer_position = (48, geometry.footer_text_top)
+    footer_bounds = draw.textbbox(footer_position, footer, font=footer_font)
+    if (
+        footer_bounds[1] < geometry.footer_top
+        or footer_bounds[2] > width - 48
+        or footer_bounds[3] > height
+    ):
+        _fail("terminal raster footer exceeds the verified canvas bounds")
+    draw.text(footer_position, footer, font=footer_font, fill="#405166")
     return image
 
 
@@ -376,19 +449,18 @@ def _render_png(
 ) -> bytes:
     lines = render_cli_evidence.transcript_lines(document, range(10))
     source_commit, wheel_digest = _provenance(document)
-    height = _canvas_height(len(lines), line_height=PNG_LINE_HEIGHT)
     image = _draw_canvas(
         image_module=image_module,
         draw_module=draw_module,
         font_module=font_module,
         width=PNG_WIDTH,
-        height=height,
         title="RecallLedger verified installed-wheel transcript",
         subtitle="All 10 commands, normalized stdout/stderr records, and exact exits",
         source_commit=source_commit,
         wheel_digest=wheel_digest,
         lines=lines,
         line_height=PNG_LINE_HEIGHT,
+        canvas_line_count=len(lines),
         body_size=15,
         footer=(
             "Normalized verified installed-wheel transcript; synthetic fixtures only; "
@@ -412,7 +484,6 @@ def _render_gif(
     frame_records = workflow_frames(document)
     source_commit, wheel_digest = _provenance(document)
     maximum_lines = max(len(lines) for _title, lines in frame_records)
-    height = _canvas_height(maximum_lines, line_height=GIF_LINE_HEIGHT)
     frames: list[Any] = []
     for index, (phase_title, lines) in enumerate(frame_records, start=1):
         frame = _draw_canvas(
@@ -420,13 +491,13 @@ def _render_gif(
             draw_module=draw_module,
             font_module=font_module,
             width=GIF_WIDTH,
-            height=height,
             title="RecallLedger installed-wheel workflow",
             subtitle=f"Phase {index}/5 | {phase_title}",
             source_commit=source_commit,
             wheel_digest=wheel_digest,
             lines=lines,
             line_height=GIF_LINE_HEIGHT,
+            canvas_line_count=maximum_lines,
             body_size=13,
             footer=(
                 "Actual normalized argv/stdout/stderr/exit records from synthetic fixtures; "
@@ -619,7 +690,7 @@ def _manifest(
 
 
 def _security_check(payloads: dict[str, bytes]) -> None:
-    forbidden = (
+    forbidden_markers = (
         b"/home/",
         b"/Users/",
         b"file://",
@@ -627,11 +698,18 @@ def _security_check(payloads: dict[str, bytes]) -> None:
         b"github_pat_",
         b"gho_",
         b"ghp_",
-        b"\x1b",
     )
-    combined = b"".join(payloads[name] for name in OUTPUT_NAMES)
-    if any(token in combined for token in forbidden):
-        _fail("media bundle contains a host path, escape, or credential marker")
+    for filename, payload in payloads.items():
+        if any(marker in payload for marker in forbidden_markers):
+            _fail(f"media bundle entry {filename} contains a host path or credential marker")
+    for filename in TEXT_OUTPUT_NAMES:
+        payload = payloads[filename]
+        try:
+            payload.decode("utf-8")
+        except UnicodeDecodeError:
+            _fail(f"textual media bundle entry {filename} is not UTF-8")
+        if any(byte < 32 and byte not in (9, 10, 13) for byte in payload):
+            _fail(f"textual media bundle entry {filename} contains a control byte")
     for filename in render_cli_evidence.OUTPUT_NAMES:
         text = payloads[filename].replace(b"http://www.w3.org/2000/svg", b"").lower()
         if any(
