@@ -1,0 +1,6 @@
+# Hash-locked visual-only wheel for the hosted CPython 3.12.3 evidence renderer.
+# RecallLedger runtime dependencies remain empty; this lock is never installed at runtime.
+--only-binary=:all:
+
+pillow==12.3.0 \
+    --hash=sha256:78cb2c6865a35ab8ff8b75fd122f6033b92a62c82801110e48ddd6c936a45d91

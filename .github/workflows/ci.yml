@@ -77,3 +77,269 @@ jobs:
 
       - name: Require a clean generated-artifact boundary
         run: test -z "$(git status --porcelain=v1 --untracked-files=all)"
+
+  installed-wheel-media:
+    name: Installed-wheel media
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      LC_ALL: C.UTF-8
+      LANG: C.UTF-8
+      TZ: UTC
+
+    steps:
+      - name: Check out the explicit PR head with complete history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up exact visual Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: 3.12.3
+          cache: pip
+          cache-dependency-path: |
+            requirements-dev.lock
+            requirements-visuals.lock
+
+      - name: Install the hash-locked capture toolchain
+        run: |
+          python -m pip install --require-hashes -r requirements-dev.lock
+          mkdir "$RUNNER_TEMP/visual-wheels"
+          python -m pip download \
+            --dest "$RUNNER_TEMP/visual-wheels" \
+            --no-deps \
+            --only-binary=:all: \
+            --require-hashes \
+            -r requirements-visuals.lock
+          expected="pillow-12.3.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl"
+          actual="$(
+            find "$RUNNER_TEMP/visual-wheels" \
+              -mindepth 1 -maxdepth 1 -type f -printf '%f\n'
+          )"
+          test "$actual" = "$expected"
+          test -z "$(
+            find "$RUNNER_TEMP/visual-wheels" \
+              -mindepth 1 -maxdepth 1 ! -type f -print -quit
+          )"
+          printf '%s  %s\n' \
+            "78cb2c6865a35ab8ff8b75fd122f6033b92a62c82801110e48ddd6c936a45d91" \
+            "$RUNNER_TEMP/visual-wheels/$expected" \
+            | sha256sum --check --strict -
+          python -m pip install \
+            --no-index \
+            --no-deps \
+            --find-links "$RUNNER_TEMP/visual-wheels" \
+            --only-binary=:all: \
+            --require-hashes \
+            -r requirements-visuals.lock
+          python -m pip check
+
+      - name: Verify exact Python, Pillow, and embedded font
+        run: |
+          python - <<'PY'
+          import platform
+          import PIL
+          from PIL import ImageFont
+
+          assert platform.python_implementation() == "CPython"
+          assert platform.python_version() == "3.12.3"
+          assert PIL.__version__ == "12.3.0"
+          assert ImageFont.load_default(size=15).getname() == ("Aileron", "Regular")
+          PY
+
+      - name: Resolve exact evidence source
+        id: source
+        shell: bash
+        run: |
+          set -eu
+          expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          [[ "$expected" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$expected"
+          adoption="docs/visuals/evidence/installed-wheel-media.adoption.json"
+          if test -f "$adoption"; then
+            source_commit="$(
+              python -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["source"]["git_commit"])' \
+                "$adoption"
+            )"
+            recorded_tree="$(
+              python -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["source"]["git_tree"])' \
+                "$adoption"
+            )"
+          else
+            source_commit="$expected"
+            recorded_tree="$(git rev-parse "$source_commit^{tree}")"
+          fi
+          [[ "$source_commit" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$recorded_tree" =~ ^[0-9a-f]{40}$ ]]
+          git cat-file -e "$source_commit^{commit}"
+          actual_tree="$(git rev-parse "$source_commit^{tree}")"
+          test "$actual_tree" = "$recorded_tree"
+          echo "commit=$source_commit" >> "$GITHUB_OUTPUT"
+          echo "tree=$recorded_tree" >> "$GITHUB_OUTPUT"
+
+      - name: Create an isolated source checkout
+        env:
+          SOURCE_COMMIT: ${{ steps.source.outputs.commit }}
+          SOURCE_TREE: ${{ steps.source.outputs.tree }}
+        run: |
+          git clone --no-hardlinks --no-tags . "$RUNNER_TEMP/recall-ledger-source"
+          git -C "$RUNNER_TEMP/recall-ledger-source" checkout --detach "$SOURCE_COMMIT"
+          test "$(git -C "$RUNNER_TEMP/recall-ledger-source" rev-parse HEAD)" = "$SOURCE_COMMIT"
+          test "$(git -C "$RUNNER_TEMP/recall-ledger-source" rev-parse HEAD^{tree})" = "$SOURCE_TREE"
+          test -z "$(
+            git -C "$RUNNER_TEMP/recall-ledger-source" \
+              status --porcelain=v1 --untracked-files=all
+          )"
+
+      - name: Recapture the real installed-wheel workflow
+        env:
+          SOURCE_COMMIT: ${{ steps.source.outputs.commit }}
+        run: |
+          cd "$RUNNER_TEMP/recall-ledger-source"
+          python tools/capture_cli_evidence.py \
+            --source-commit "$SOURCE_COMMIT" \
+            --write
+          python tools/render_cli_evidence.py --write
+
+      - name: Verify refreshed evidence provenance and bounded changes
+        env:
+          SOURCE_COMMIT: ${{ steps.source.outputs.commit }}
+          SOURCE_TREE: ${{ steps.source.outputs.tree }}
+        run: |
+          source_root="$RUNNER_TEMP/recall-ledger-source"
+          python - \
+            "$source_root/docs/visuals/evidence/installed-wheel-cli.v1.json" \
+            "$SOURCE_COMMIT" \
+            "$SOURCE_TREE" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          evidence = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+          provenance = evidence["provenance"]
+          assert provenance["source_commit"] == sys.argv[2]
+          assert provenance["source_tree"] == sys.argv[3]
+          assert evidence["caption"].startswith("Captured from an installed wheel")
+          assert len(evidence["steps"]) == 10
+          PY
+          actual="$(
+            git -C "$source_root" diff --name-only -- \
+              docs/visuals/evidence/installed-wheel-cli.v1.json \
+              docs/visuals/installed-wheel-history-tombstone.svg \
+              docs/visuals/installed-wheel-write-replay.svg \
+              | LC_ALL=C sort
+          )"
+          expected="$(
+            printf '%s\n' \
+              docs/visuals/evidence/installed-wheel-cli.v1.json \
+              docs/visuals/installed-wheel-history-tombstone.svg \
+              docs/visuals/installed-wheel-write-replay.svg
+          )"
+          test "$actual" = "$expected"
+          test -z "$(
+            git -C "$source_root" status --porcelain=v1 --untracked-files=all \
+              | grep -v '^ M docs/visuals/' \
+              || true
+          )"
+
+      - name: Render the exact six-file bundle twice
+        run: |
+          source_root="$RUNNER_TEMP/recall-ledger-source"
+          mkdir "$RUNNER_TEMP/media-first" "$RUNNER_TEMP/media-second"
+          for output in "$RUNNER_TEMP/media-first" "$RUNNER_TEMP/media-second"
+          do
+            python "$source_root/tools/render_cli_media.py" \
+              --write \
+              --evidence-path \
+                "$source_root/docs/visuals/evidence/installed-wheel-cli.v1.json" \
+              --svg-directory "$source_root/docs/visuals" \
+              --output-directory "$output"
+            python "$source_root/tools/render_cli_media.py" \
+              --check \
+              --evidence-path \
+                "$source_root/docs/visuals/evidence/installed-wheel-cli.v1.json" \
+              --svg-directory "$source_root/docs/visuals" \
+              --output-directory "$output"
+          done
+
+      - name: Verify both exact six-file inventories
+        run: |
+          expected="$(
+            printf '%s\n' \
+              installed-wheel-cli.png \
+              installed-wheel-cli.v1.json \
+              installed-wheel-history-tombstone.svg \
+              installed-wheel-media.manifest.json \
+              installed-wheel-workflow.gif \
+              installed-wheel-write-replay.svg
+          )"
+          for directory in "$RUNNER_TEMP/media-first" "$RUNNER_TEMP/media-second"
+          do
+            actual="$(
+              find "$directory" \
+                -mindepth 1 -maxdepth 1 -type f -printf '%f\n' \
+                | LC_ALL=C sort
+            )"
+            test "$actual" = "$expected"
+            test -z "$(
+              find "$directory" \
+                -mindepth 1 -maxdepth 1 ! -type f -print -quit
+            )"
+          done
+
+      - name: Compare the two byte-identical six-file bundles
+        run: |
+          for name in \
+            installed-wheel-cli.v1.json \
+            installed-wheel-write-replay.svg \
+            installed-wheel-history-tombstone.svg \
+            installed-wheel-cli.png \
+            installed-wheel-workflow.gif \
+            installed-wheel-media.manifest.json
+          do
+            cmp -- \
+              "$RUNNER_TEMP/media-first/$name" \
+              "$RUNNER_TEMP/media-second/$name"
+          done
+
+      - name: Compare replay with adopted installed-wheel media
+        run: |
+          adoption="docs/visuals/evidence/installed-wheel-media.adoption.json"
+          if test -f "$adoption"; then
+            cmp -- \
+              "$RUNNER_TEMP/media-first/installed-wheel-cli.v1.json" \
+              docs/visuals/evidence/installed-wheel-cli.v1.json
+            for name in \
+              installed-wheel-write-replay.svg \
+              installed-wheel-history-tombstone.svg \
+              installed-wheel-cli.png \
+              installed-wheel-workflow.gif \
+              installed-wheel-media.manifest.json
+            do
+              cmp -- "$RUNNER_TEMP/media-first/$name" "docs/visuals/$name"
+            done
+          else
+            test ! -e docs/visuals/installed-wheel-cli.png
+            test ! -e docs/visuals/installed-wheel-workflow.gif
+            test ! -e docs/visuals/installed-wheel-media.manifest.json
+          fi
+
+      - name: Require clean checkout after hosted rendering
+        run: |
+          git diff --check
+          git diff --exit-code -- .
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+
+      - name: Upload reproducible installed-wheel media
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: installed-wheel-media-${{ github.run_id }}
+          path: ${{ runner.temp }}/media-first/
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+          include-hidden-files: false
