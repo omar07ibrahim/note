@@ -17,7 +17,7 @@
   <rect width="1600" height="1212" fill="#f7f9fc"/>
   <text class="title" x="48" y="54">Installed wheel · write, replay, and conflict</text>
   <text class="subtitle" x="48" y="86">Steps 1-5: append, idempotent replay, optimistic revision, stale rejection, head proof</text>
-  <text class="provenance" x="48" y="116">source f4fd692d6ccf · wheel sha256 43c4ea35f1b85460…</text>
+  <text class="provenance" x="48" y="116">source f48686bc63ff · wheel sha256 db9f8a173b5a1eaa…</text>
   <rect x="48" y="150" width="1504" height="970" rx="14" fill="#111827" stroke="#45566d" stroke-width="2"/>
   <circle cx="72" cy="174" r="7" fill="#ff6978"/>
   <circle cx="96" cy="174" r="7" fill="#f7c65d"/>

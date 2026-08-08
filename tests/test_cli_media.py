@@ -1,8 +1,13 @@
 from __future__ import annotations
 
 import ast
+import binascii
+import hashlib
+import stat
 import tomllib
+import zlib
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -10,6 +15,149 @@ from tools import cli_evidence_contract as contract
 from tools import render_cli_evidence, render_cli_media
 
 ROOT = Path(__file__).resolve().parents[1]
+ADOPTION_PATH = ROOT / "docs/visuals/evidence/installed-wheel-media.adoption.json"
+EXPECTED_ADOPTED_MEDIA = {
+    "installed-wheel-cli.png": (
+        "docs/visuals/installed-wheel-cli.png",
+        267_370,
+        "fb93a728a68908018ba03484ba32a5930140eb0d02a4195d3a0f5202fd6ed520",
+    ),
+    "installed-wheel-cli.v1.json": (
+        "docs/visuals/evidence/installed-wheel-cli.v1.json",
+        13_603,
+        "0caeb11afe1eb142faa53ffaea03277ea4fc8de795bc3b998082a5491bd73458",
+    ),
+    "installed-wheel-history-tombstone.svg": (
+        "docs/visuals/installed-wheel-history-tombstone.svg",
+        7_412,
+        "5cedc97229c097dd19ac723fe4babf3ed7b9790d13103d121f0d73bd9a2d7b4a",
+    ),
+    "installed-wheel-media.manifest.json": (
+        "docs/visuals/installed-wheel-media.manifest.json",
+        3_785,
+        "b728de9873452a42042d09d3a7b4acf05afaf5ba58ce4b20a739651b81f1643c",
+    ),
+    "installed-wheel-workflow.gif": (
+        "docs/visuals/installed-wheel-workflow.gif",
+        222_131,
+        "a67ec84f163ba755847345db0176dda415f90a6b813e9dc72a19c5e562704e82",
+    ),
+    "installed-wheel-write-replay.svg": (
+        "docs/visuals/installed-wheel-write-replay.svg",
+        7_642,
+        "2d0e75d1355dec0830bc0391d3e3de9deef2f2301c37815ac10991d16af369ae",
+    ),
+}
+
+
+def _gif_sub_blocks(payload: bytes, offset: int) -> tuple[bytes, int]:
+    result = bytearray()
+    while True:
+        assert offset < len(payload)
+        size = payload[offset]
+        offset += 1
+        if size == 0:
+            return bytes(result), offset
+        end = offset + size
+        assert end <= len(payload)
+        result.extend(payload[offset:end])
+        offset = end
+
+
+def _assert_adopted_png_contract(payload: bytes) -> None:
+    assert payload.startswith(b"\x89PNG\r\n\x1a\n")
+    chunks: list[tuple[bytes, bytes]] = []
+    offset = 8
+    while offset < len(payload):
+        length = int.from_bytes(payload[offset : offset + 4], "big")
+        kind = payload[offset + 4 : offset + 8]
+        end = offset + 12 + length
+        assert end <= len(payload)
+        data = payload[offset + 8 : offset + 8 + length]
+        expected_crc = int.from_bytes(payload[offset + 8 + length : end], "big")
+        assert binascii.crc32(kind + data) & 0xFFFF_FFFF == expected_crc
+        chunks.append((kind, data))
+        offset = end
+        if kind == b"IEND":
+            break
+    assert offset == len(payload)
+    kinds = tuple(kind for kind, _data in chunks)
+    assert kinds[0] == b"IHDR" and kinds[-1] == b"IEND"
+    assert set(kinds) == {b"IHDR", b"IDAT", b"IEND"}
+    header = chunks[0][1]
+    assert len(header) == 13
+    width = int.from_bytes(header[0:4], "big")
+    height = int.from_bytes(header[4:8], "big")
+    assert (width, height) == (1_920, 2_120)
+    assert header[8:] == bytes((8, 2, 0, 0, 0))
+    scanlines = zlib.decompress(b"".join(data for kind, data in chunks if kind == b"IDAT"))
+    stride = 1 + width * 3
+    assert len(scanlines) == height * stride
+    assert {scanlines[row * stride] for row in range(height)} <= {0, 1, 2, 3, 4}
+
+
+def _assert_adopted_gif_contract(payload: bytes) -> None:  # noqa: PLR0915
+    assert payload.startswith(b"GIF89a")
+    width = int.from_bytes(payload[6:8], "little")
+    height = int.from_bytes(payload[8:10], "little")
+    assert (width, height) == (1_600, 708)
+    packed = payload[10]
+    assert packed & 0x80
+    offset = 13 + 3 * (2 ** ((packed & 0x07) + 1))
+    pending: tuple[int, int, bool] | None = None
+    frames: list[tuple[int, int, bool, int, int, int, int]] = []
+    loop_count: int | None = None
+    while offset < len(payload):
+        marker = payload[offset]
+        offset += 1
+        if marker == 0x3B:
+            assert offset == len(payload) and pending is None
+            break
+        if marker == 0x21:
+            label = payload[offset]
+            offset += 1
+            if label == 0xF9:
+                assert payload[offset] == 4
+                flags = payload[offset + 1]
+                delay_ms = int.from_bytes(payload[offset + 2 : offset + 4], "little") * 10
+                pending = ((flags >> 2) & 0x07, delay_ms, bool(flags & 0x01))
+                assert payload[offset + 5] == 0
+                offset += 6
+                continue
+            header_size = payload[offset]
+            offset += 1
+            header = payload[offset : offset + header_size]
+            offset += header_size
+            extension, offset = _gif_sub_blocks(payload, offset)
+            assert label == 0xFF and header == b"NETSCAPE2.0"
+            assert len(extension) == 3 and extension[0] == 1
+            loop_count = int.from_bytes(extension[1:3], "little")
+            continue
+        assert marker == 0x2C and pending is not None
+        descriptor = payload[offset : offset + 9]
+        assert len(descriptor) == 9
+        left = int.from_bytes(descriptor[0:2], "little")
+        top = int.from_bytes(descriptor[2:4], "little")
+        frame_width = int.from_bytes(descriptor[4:6], "little")
+        frame_height = int.from_bytes(descriptor[6:8], "little")
+        offset += 9
+        if descriptor[8] & 0x80:
+            offset += 3 * (2 ** ((descriptor[8] & 0x07) + 1))
+        assert 2 <= payload[offset] <= 8
+        compressed, offset = _gif_sub_blocks(payload, offset + 1)
+        assert compressed
+        frames.append((*pending, left, top, frame_width, frame_height))
+        pending = None
+    else:
+        raise AssertionError
+    assert loop_count == 0
+    assert frames == [
+        (2, 1_000, False, 0, 0, 1_600, 708),
+        (2, 1_000, False, 0, 0, 1_600, 708),
+        (2, 1_000, False, 0, 0, 1_600, 708),
+        (2, 1_000, False, 0, 0, 1_600, 708),
+        (2, 1_600, False, 0, 0, 1_600, 708),
+    ]
 
 
 def _document() -> contract.JsonObject:
@@ -114,6 +262,98 @@ def test_media_security_ignores_binary_escape_coincidence_but_rejects_textual_an
     payloads["installed-wheel-cli.v1.json"] = b'{"ansi":"\x1b[31m"}\n'
     with pytest.raises(render_cli_media.MediaRenderError, match="contains a control byte"):
         render_cli_media._security_check(payloads)
+
+
+def test_adopted_media_matches_reviewed_hosted_artifact_and_generated_manifest() -> None:
+    adoption = contract.decode_canonical_document(
+        ADOPTION_PATH.read_bytes(), context="installed-wheel media adoption"
+    )
+    assert set(adoption) == {
+        "adoption_status",
+        "entries",
+        "hosted_artifact",
+        "review",
+        "schema_version",
+        "source",
+    }
+    assert (
+        adoption["schema_version"] == 1
+        and adoption["adoption_status"] == "adopted-after-independent-review"
+    )
+    source = cast(contract.JsonObject, adoption["source"])
+    assert source == {
+        "git_commit": "f48686bc63ff4654c61af88e6eb2429934efa23e",
+        "git_tree": "7535ca3695ac17797ab24c51f58fdaa309bbaca1",
+        "media_manifest_sha256": "b728de9873452a42042d09d3a7b4acf05afaf5ba58ce4b20a739651b81f1643c",
+    }
+    assert adoption["hosted_artifact"] == {
+        "archive_digest": "sha256:aa4486007d1a77480dd045481752eec094eb9090a1ecfb73f7ef80f47dab1bad",
+        "artifact_id": 9_026_054_149,
+        "created_at": "2026-08-08T18:42:33Z",
+        "expires_at": "2026-08-09T18:42:33Z",
+        "name": "installed-wheel-media-31272523249",
+        "retention_days": 1,
+        "run_id": 31_272_523_249,
+        "size_bytes": 522_881,
+        "workflow_job_id": 93_140_876_154,
+    }
+    review = cast(contract.JsonObject, adoption["review"])
+    assert review["independence"] == "A second agent reviewed the hosted archive before adoption."
+    assert "not a signature" in cast(str, review["attestation_boundary"])
+    entries_value = adoption["entries"]
+    assert type(entries_value) is list
+    records = {
+        cast(str, entry["artifact_path"]): entry
+        for entry in cast(list[contract.JsonObject], entries_value)
+    }
+    assert set(records) == set(EXPECTED_ADOPTED_MEDIA)
+    for artifact_path, (
+        adopted_path,
+        expected_size,
+        expected_hash,
+    ) in EXPECTED_ADOPTED_MEDIA.items():
+        payload_path = ROOT / adopted_path
+        payload = payload_path.read_bytes()
+        assert (
+            len(payload) == expected_size and hashlib.sha256(payload).hexdigest() == expected_hash
+        )
+        assert stat.S_IMODE(payload_path.stat().st_mode) == 0o644
+        assert records[artifact_path] == {
+            "adopted_path": adopted_path,
+            "artifact_path": artifact_path,
+            "mode": "100644",
+            "sha256": expected_hash,
+            "size_bytes": expected_size,
+        }
+    manifest_raw = (ROOT / "docs/visuals/installed-wheel-media.manifest.json").read_bytes()
+    manifest = contract.decode_canonical_document(
+        manifest_raw, context="installed-wheel media manifest"
+    )
+    assert hashlib.sha256(manifest_raw).hexdigest() == source["media_manifest_sha256"]
+    assert manifest["adoption_status"] == "generated-not-adopted"
+    manifest_source = cast(contract.JsonObject, manifest["source"])
+    assert (
+        manifest_source["git_commit"] == source["git_commit"]
+        and manifest_source["git_tree"] == source["git_tree"]
+    )
+    manifest_entries = cast(list[contract.JsonObject], manifest["outputs"])
+    for record in manifest_entries:
+        assert record == records[cast(str, record["artifact_path"])]
+    assert render_cli_media.MANIFEST_NAME not in {
+        cast(str, record["artifact_path"]) for record in manifest_entries
+    }
+    assert records[render_cli_media.MANIFEST_NAME]["sha256"] == source["media_manifest_sha256"]
+    provenance = cast(contract.JsonObject, _document()["provenance"])
+    assert (
+        provenance["source_commit"] == source["git_commit"]
+        and provenance["source_tree"] == source["git_tree"]
+    )
+    _assert_adopted_png_contract(
+        (ROOT / EXPECTED_ADOPTED_MEDIA[render_cli_media.PNG_NAME][0]).read_bytes()
+    )
+    _assert_adopted_gif_contract(
+        (ROOT / EXPECTED_ADOPTED_MEDIA[render_cli_media.GIF_NAME][0]).read_bytes()
+    )
 
 
 def test_visual_dependency_is_exact_lazy_and_absent_from_runtime_dependencies() -> None:

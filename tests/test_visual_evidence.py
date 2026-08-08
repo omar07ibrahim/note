@@ -53,10 +53,14 @@ EXPECTED_VISUAL_TREE = {
     Path("README.md"),
     Path("architecture-workflow.svg"),
     Path("evidence/installed-wheel-cli.v1.json"),
+    Path("evidence/installed-wheel-media.adoption.json"),
     Path("fixtures/cli-content-stale.json"),
     Path("fixtures/cli-content-v1.json"),
     Path("fixtures/cli-content-v2.json"),
+    Path("installed-wheel-cli.png"),
     Path("installed-wheel-history-tombstone.svg"),
+    Path("installed-wheel-media.manifest.json"),
+    Path("installed-wheel-workflow.gif"),
     Path("installed-wheel-write-replay.svg"),
     Path("lexical-search-eval-summary.svg"),
     Path("lexical-search-query-matrix.svg"),
@@ -910,25 +914,32 @@ def test_svg_rerender_is_byte_exact_and_accessible() -> None:
         assert binding_groups
 
 
-def test_sources_and_svg_have_no_external_assets_host_paths_or_sensitive_data() -> None:
-    payload = b"".join(
-        (OUTPUT_DIRECTORY / relative_path).read_bytes()
-        for relative_path in sorted(EXPECTED_VISUAL_TREE)
+def test_visual_assets_have_no_external_assets_host_paths_or_sensitive_data() -> None:
+    text_paths = tuple(
+        path for path in sorted(EXPECTED_VISUAL_TREE) if path.suffix not in {".gif", ".png"}
     )
-    payload += b"".join(render_visuals.render_sources().values())
-    text = payload.decode("utf-8")
+    binary_paths = tuple(
+        path for path in sorted(EXPECTED_VISUAL_TREE) if path.suffix in {".gif", ".png"}
+    )
+    text_payload = b"".join((OUTPUT_DIRECTORY / path).read_bytes() for path in text_paths)
+    text_payload += b"".join(render_visuals.render_sources().values())
+    binary_payload = b"".join((OUTPUT_DIRECTORY / path).read_bytes() for path in binary_paths)
+    text = text_payload.decode("utf-8", errors="strict")
+    assert all(byte >= 32 or byte in (9, 10, 13) for byte in text_payload)
     without_svg_namespace = text.replace(SVG_NAMESPACE, "")
-
     assert not re.search(r"(?:https?|file|data)://", without_svg_namespace)
     assert not re.search(r"(?:href|xlink:href)=", text, flags=re.IGNORECASE)
     assert not re.search(r"<(?:script|foreignObject|image)\b", text, flags=re.IGNORECASE)
-    assert "/home/" not in text
-    assert "/Users/" not in text
-    assert "file://" not in text
-    assert "-----BEGIN " not in text
-    assert not re.search(r"\bAKIA[0-9A-Z]{16}\b", text)
-    assert not re.search(r"\b(?:ghp|github_pat)_[A-Za-z0-9_]{16,}\b", text)
-    assert not re.search(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b", text)
+    combined = text_payload + binary_payload
+    assert (
+        b"/home/" not in combined
+        and b"/Users/" not in combined
+        and b"file://" not in combined
+        and b"-----BEGIN " not in combined
+    )
+    assert re.search(rb"\bAKIA[0-9A-Z]{16}\b", combined) is None
+    assert re.search(rb"\b(?:gho|ghp|github_pat)_[A-Za-z0-9_]{16,}\b", combined) is None
+    assert re.search(rb"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b", combined) is None
 
 
 def test_sdist_carries_self_contained_visual_renderer(tmp_path: Path) -> None:
@@ -975,7 +986,10 @@ def test_sdist_carries_self_contained_visual_renderer(tmp_path: Path) -> None:
             path for path in file_members if path.startswith("docs/visuals/")
         } == expected_visual_members
         required_review_files = {
+            "THIRD_PARTY_NOTICES.md",
+            "requirements-visuals.lock",
             "tests/test_cli_evidence.py",
+            "tests/test_cli_media.py",
             "tests/test_cli_evidence_hardening.py",
             "tests/test_lexical_eval_visuals.py",
             "tests/test_visual_evidence.py",
@@ -985,6 +999,7 @@ def test_sdist_carries_self_contained_visual_renderer(tmp_path: Path) -> None:
             "tools/cli_evidence_contract.py",
             "tools/lexical_eval_contract.py",
             "tools/render_cli_evidence.py",
+            "tools/render_cli_media.py",
             "tools/render_lexical_eval_visuals.py",
             "tools/render_visuals.py",
         }
@@ -1035,10 +1050,11 @@ def test_sdist_carries_self_contained_visual_renderer(tmp_path: Path) -> None:
             "-c",
             (
                 "from tools import capture_cli_evidence,cli_evidence_contract,"
-                "render_cli_evidence,render_lexical_eval_visuals,render_visuals;"
+                "render_cli_evidence,render_cli_media,render_lexical_eval_visuals,render_visuals;"
                 "assert capture_cli_evidence.EXPECTED_WHEEL_NAME.endswith('.whl');"
                 "assert len(cli_evidence_contract.FIXTURE_FILES)==3;"
                 "assert len(render_cli_evidence.OUTPUT_NAMES)==2;"
+                "assert len(render_cli_media.OUTPUT_NAMES)==6;"
                 "assert len(render_lexical_eval_visuals.OUTPUT_NAMES)==3;"
                 "assert len(render_visuals.render_sources())==3"
             ),

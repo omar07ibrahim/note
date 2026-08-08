@@ -9,6 +9,8 @@ requirements-dev.lock text eol=lf
 requirements-visuals.lock text eol=lf
 docs/visuals/*.svg text eol=lf
 docs/visuals/sources/*.json text eol=lf
+docs/visuals/*.json text eol=lf
+docs/visuals/evidence/*.json text eol=lf
 
 # Adopted raster and motion evidence must never be line-ending transformed.
 docs/visuals/*.png binary
