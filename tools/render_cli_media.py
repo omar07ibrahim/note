@@ -53,7 +53,7 @@ RENDERER_INPUT_PATHS: Final = (
     "tools/render_cli_media.py",
 )
 FRAME_SPECS: Final = (
-    ("Create and exact replay", range(0, 2)),
+    ("Create and exact replay", range(2)),
     ("Revise and reject stale command", range(2, 4)),
     ("Read head and first history page", range(4, 6)),
     ("Continue history and tombstone", range(6, 8)),
@@ -201,7 +201,7 @@ def _read_bundle(output_directory: Path) -> dict[str, bytes]:
     directory = _open_directory(output_directory, create=False)
     try:
         try:
-            names = os.listdir(directory)
+            names = os.listdir(directory)  # noqa: PTH208 - descriptor-pinned inventory
         except OSError:
             _fail("media bundle inventory is unavailable")
         if set(names) != set(OUTPUT_NAMES) or len(names) != len(OUTPUT_NAMES):
@@ -300,7 +300,7 @@ def _canvas_height(line_count: int, *, line_height: int) -> int:
     )
 
 
-def _draw_canvas(
+def _draw_canvas(  # noqa: PLR0913 - explicit fixed rendering contract
     *,
     image_module: Any,
     draw_module: Any,
@@ -483,8 +483,8 @@ def _verify_png(payload: bytes, document: contract.JsonObject, image_module: Any
                 _fail("terminal PNG contains unexpected metadata")
     except MediaRenderError:
         raise
-    except Exception as error:
-        raise MediaRenderError("terminal PNG is not decodable") from error
+    except Exception:
+        _fail("terminal PNG is not decodable")
 
 
 def _verify_gif(payload: bytes, document: contract.JsonObject, image_module: Any) -> None:
@@ -514,8 +514,8 @@ def _verify_gif(payload: bytes, document: contract.JsonObject, image_module: Any
                 image.load()
     except MediaRenderError:
         raise
-    except Exception as error:
-        raise MediaRenderError("workflow GIF is not decodable") from error
+    except Exception:
+        _fail("workflow GIF is not decodable")
 
 
 def _record(filename: str, payload: bytes) -> contract.JsonObject:
