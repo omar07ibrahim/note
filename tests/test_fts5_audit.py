@@ -256,3 +256,72 @@ def test_candidate_identity_validation_rejects_hostile_rows(
 def test_candidate_identity_validation_accepts_exact_sorted_ids() -> None:
     values = (note_id(1), note_id(2))
     assert operations_module._validated_fts5_candidate_ids(values) == values
+
+def test_fts5_audit_matches_reference_for_unicode_and_operator_terms(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_storage_values(
+        monkeypatch,
+        note_ids=(note_id(1), note_id(2), note_id(3), note_id(4)),
+        timestamps=(10, 20, 30, 40),
+    )
+    with SQLiteLedger.open(secure_directory(tmp_path)) as ledger:
+        first = ledger.create_note(
+            tenant_id=TENANT_A,
+            command_id=command_id(1),
+            content=NoteContent(
+                "Caf\u00e9 \uff2f\uff32",
+                "r\u00e9sum\u00e9 co-operate",
+                ("Stra\u00dfe", "C++"),
+            ),
+        ).event
+        second = ledger.create_note(
+            tenant_id=TENANT_A,
+            command_id=command_id(2),
+            content=NoteContent(
+                "Cafe\u0301 planner",
+                "resume co operate",
+                ("strasse",),
+            ),
+        ).event
+        third = ledger.create_note(
+            tenant_id=TENANT_A,
+            command_id=command_id(3),
+            content=NoteContent(
+                "operator syntax",
+                '"quoted" alpha* NEAR(foo)',
+                ("OR",),
+            ),
+        ).event
+        foreign = ledger.create_note(
+            tenant_id=TENANT_B,
+            command_id=command_id(1),
+            content=NoteContent(
+                "Caf\u00e9 alpha",
+                "co-operate NEAR foo",
+                ("strasse",),
+            ),
+        ).event
+
+        cases = (
+            ("\uff23\uff21\uff26\u00c9", (first.note_id, second.note_id)),
+            ("STRASSE", (first.note_id, second.note_id)),
+            ("co operate", (first.note_id, second.note_id)),
+            ("alpha OR", (third.note_id,)),
+            ('"quoted" alpha*', (third.note_id,)),
+            ("NEAR(foo)", (third.note_id,)),
+            ("alpha alpha", (third.note_id,)),
+            ("C++", (first.note_id,)),
+            ("missing", ()),
+        )
+        for query, expected in cases:
+            audit = ledger.audit_fts5_candidates(tenant_id=TENANT_A, query=query)
+            reference = ledger.search_notes(tenant_id=TENANT_A, query=query)
+            reference_ids = tuple(
+                sorted(hit.citation.note_id for hit in reference.hits)
+            )
+            assert audit.oracle_match_note_ids == expected
+            assert audit.candidate_note_ids == expected
+            assert reference_ids == expected
+            assert foreign.note_id not in audit.candidate_note_ids
