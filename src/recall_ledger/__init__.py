@@ -24,6 +24,7 @@ from .retrieval import (
     score_lexical_content,
 )
 from .storage import (
+    Fts5CandidateAudit,
     HistoryPage,
     LedgerStorageError,
     SearchCitation,
@@ -38,6 +39,7 @@ __all__ = [
     "CommandId",
     "ContractViolation",
     "EventKind",
+    "Fts5CandidateAudit",
     "HistoryPage",
     "LedgerEvent",
     "LedgerStorageError",

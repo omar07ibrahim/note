@@ -53,6 +53,8 @@ DEFAULT_SEARCH_LIMIT: Final = 20
 MAX_SEARCH_LIMIT: Final = 100
 MAX_SEARCH_HEADS: Final = 1_000
 MAX_SEARCH_LIVE_CONTENT_BYTES: Final = 16 * 1_024 * 1_024
+FTS5_CANDIDATE_SCHEMA_VERSION: Final = 1
+FTS5_CANDIDATE_TOKENIZER: Final = "ascii"
 _DIRECTORY_MODE: Final = 0o700
 _FILE_MODE: Final = 0o600
 _SQLITE_SYNCHRONOUS_FULL: Final = 2
@@ -163,6 +165,24 @@ class SearchResults:
     scanned_live_notes: int
     scanned_content_bytes: int
     hits: tuple[SearchHit, ...]
+
+
+
+@dataclass(frozen=True, slots=True)
+class Fts5CandidateAudit:
+    """One rebuilt TEMP FTS5 candidate set proven against the reference oracle."""
+
+    tenant_id: TenantId
+    query: LexicalQuery
+    schema_version: int
+    tokenizer: str
+    sqlite_version: str
+    sqlite_source_id: str
+    scanned_heads: int
+    indexed_live_notes: int
+    scanned_content_bytes: int
+    oracle_match_note_ids: tuple[NoteId, ...]
+    candidate_note_ids: tuple[NoteId, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -710,6 +730,50 @@ class SQLiteLedger:
                     "the search snapshot did not end in a clean state",
                 )
             return results  # noqa: TRY300 - result delivery is part of the guard
+        except BaseException as error:
+            poison_was_preexisting = self._poisoned
+            self._poisoned = True
+            replacement = self._settle_transaction_failure(
+                connection,
+                error,
+                phase=None,
+                poison_was_preexisting=poison_was_preexisting,
+            )
+            if replacement is not None:
+                raise replacement from None
+            raise
+
+    def audit_fts5_candidates(
+        self,
+        *,
+        tenant_id: TenantId,
+        query: str,
+    ) -> Fts5CandidateAudit:
+        """Rebuild a tenant-local TEMP index and prove exact oracle agreement."""
+
+        connection = self._ready_connection()
+        from . import _ledger_operations as operations  # noqa: PLC0415
+
+        operations._validate_tenant(tenant_id)
+        compiled_query = compile_lexical_query(query)
+        self._assert_schema_cookie(connection)
+        try:
+            self._begin_transaction(connection, immediate=False)
+            self._assert_schema_cookie(connection)
+            audit = operations._audit_fts5_candidates_in_transaction(
+                connection,
+                tenant_id=tenant_id,
+                query=compiled_query,
+            )
+            self._assert_schema_cookie(connection)
+            connection.execute("COMMIT")
+            if _transaction_active(connection):
+                self._poisoned = True
+                raise LedgerStorageError(  # noqa: TRY301 - terminal proof stays guarded
+                    "TRANSACTION_STATE_UNCERTAIN",
+                    "the FTS5 audit snapshot did not end in a clean state",
+                )
+            return audit  # noqa: TRY300 - result delivery is part of the guard
         except BaseException as error:
             poison_was_preexisting = self._poisoned
             self._poisoned = True

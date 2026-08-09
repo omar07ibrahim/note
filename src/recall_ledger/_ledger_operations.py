@@ -24,12 +24,15 @@ from .events import (
     decode_event,
     new_note_id,
 )
-from .retrieval import LexicalQuery, score_lexical_content
+from .retrieval import LexicalQuery, lexical_token_streams, score_lexical_content
 from .storage import (
     MAX_PAGE_SIZE,
     MAX_SEARCH_HEADS,
     MAX_SEARCH_LIMIT,
     MAX_SEARCH_LIVE_CONTENT_BYTES,
+    FTS5_CANDIDATE_SCHEMA_VERSION,
+    FTS5_CANDIDATE_TOKENIZER,
+    Fts5CandidateAudit,
     HistoryPage,
     LedgerStorageError,
     SearchCitation,
@@ -156,6 +159,36 @@ _LOAD_NEXT_TENANT_EVENT_NOTE_ID_SQL: Final = _sql(
     LIMIT 1
     """
 )
+
+
+_CREATE_FTS5_CANDIDATES_SQL: Final = _sql(
+    """
+    CREATE VIRTUAL TABLE temp.recall_ledger_fts5_candidates USING fts5(
+        note_id UNINDEXED,
+        title,
+        body,
+        tags,
+        tokenize = 'ascii',
+        detail = none,
+        columnsize = 0
+    )
+    """
+)
+_INSERT_FTS5_CANDIDATE_SQL: Final = _sql(
+    """
+    INSERT INTO temp.recall_ledger_fts5_candidates(note_id, title, body, tags)
+    VALUES (?, ?, ?, ?)
+    """
+)
+_SELECT_FTS5_CANDIDATES_SQL: Final = _sql(
+    """
+    SELECT note_id
+    FROM temp.recall_ledger_fts5_candidates
+    WHERE recall_ledger_fts5_candidates MATCH ?
+    ORDER BY note_id ASC
+    """
+)
+_DROP_FTS5_CANDIDATES_SQL: Final = "DROP TABLE temp.recall_ledger_fts5_candidates"
 
 
 def _create_intent(
@@ -765,11 +798,150 @@ def _search_in_transaction(
     query: LexicalQuery,
     limit: int,
 ) -> SearchResults:
+    live_events, scanned_heads, content_bytes = _verified_search_corpus(
+        connection,
+        tenant_id,
+    )
+
+    hits: list[SearchHit] = []
+    for event in live_events:
+        content = cast(NoteContent, event.content)
+        score = score_lexical_content(query, content)
+        if score is None:
+            continue
+        hits.append(
+            SearchHit(
+                citation=SearchCitation(
+                    tenant_id=event.tenant_id,
+                    note_id=event.note_id,
+                    revision=event.revision,
+                    event_hash=event.event_hash,
+                ),
+                recorded_at_us=event.recorded_at_us,
+                content=content,
+                score=score,
+            )
+        )
+
+    hits.sort(
+        key=lambda hit: (
+            -hit.score.total,
+            -hit.recorded_at_us,
+            hit.citation.note_id,
+        )
+    )
+    return SearchResults(
+        tenant_id=tenant_id,
+        query=query,
+        limit=limit,
+        total_matches=len(hits),
+        scanned_heads=scanned_heads,
+        scanned_live_notes=len(live_events),
+        scanned_content_bytes=content_bytes,
+        hits=tuple(hits[:limit]),
+    )
+
+
+def _audit_fts5_candidates_in_transaction(
+    connection: sqlite3.Connection,
+    *,
+    tenant_id: TenantId,
+    query: LexicalQuery,
+) -> Fts5CandidateAudit:
+    live_events, scanned_heads, content_bytes = _verified_search_corpus(
+        connection,
+        tenant_id,
+    )
+    oracle_match_note_ids = tuple(
+        sorted(
+            event.note_id
+            for event in live_events
+            if score_lexical_content(query, cast(NoteContent, event.content)) is not None
+        )
+    )
+    candidate_note_ids = _fts5_candidate_note_ids(connection, query, live_events)
+    if candidate_note_ids != oracle_match_note_ids:
+        raise LedgerStorageError(
+            "FTS5_CANDIDATE_DRIFT",
+            "the rebuilt FTS5 candidate set disagrees with the reference oracle",
+        )
+
+    runtime = connection.execute(
+        "SELECT CAST(sqlite_version() AS TEXT), CAST(sqlite_source_id() AS TEXT)"
+    ).fetchone()
+    sqlite_version = cast(str, runtime[0])
+    sqlite_source_id = cast(str, runtime[1])
+    return Fts5CandidateAudit(
+        tenant_id=tenant_id,
+        query=query,
+        schema_version=FTS5_CANDIDATE_SCHEMA_VERSION,
+        tokenizer=FTS5_CANDIDATE_TOKENIZER,
+        sqlite_version=sqlite_version,
+        sqlite_source_id=sqlite_source_id,
+        scanned_heads=scanned_heads,
+        indexed_live_notes=len(live_events),
+        scanned_content_bytes=content_bytes,
+        oracle_match_note_ids=oracle_match_note_ids,
+        candidate_note_ids=candidate_note_ids,
+    )
+
+
+def _fts5_candidate_note_ids(
+    connection: sqlite3.Connection,
+    query: LexicalQuery,
+    live_events: tuple[LedgerEvent, ...],
+) -> tuple[NoteId, ...]:
+    connection.execute(_CREATE_FTS5_CANDIDATES_SQL)
+    try:
+        for event in live_events:
+            streams = lexical_token_streams(cast(NoteContent, event.content))
+            connection.execute(
+                _INSERT_FTS5_CANDIDATE_SQL,
+                (event.note_id, streams.title, streams.body, streams.tags),
+            )
+        rows = connection.execute(
+            _SELECT_FTS5_CANDIDATES_SQL,
+            (query.match_expression,),
+        ).fetchall()
+        values = tuple(row["note_id"] for row in rows)
+    finally:
+        connection.execute(_DROP_FTS5_CANDIDATES_SQL)
+    return _validated_fts5_candidate_ids(values)
+
+
+def _validated_fts5_candidate_ids(values: tuple[object, ...]) -> tuple[NoteId, ...]:
+    if any(type(value) is not str for value in values):
+        raise LedgerStorageError(
+            "DATABASE_INTEGRITY",
+            "the FTS5 candidate index returned an invalid identity",
+        )
+    note_ids: list[NoteId] = []
+    for value in cast(tuple[str, ...], values):
+        try:
+            _validate_identifier(value, "note_id")
+        except ContractViolation:
+            raise LedgerStorageError(
+                "DATABASE_INTEGRITY",
+                "the FTS5 candidate index returned an invalid identity",
+            ) from None
+        note_ids.append(NoteId(value))
+    result = tuple(note_ids)
+    if result != tuple(sorted(set(result))):
+        raise LedgerStorageError(
+            "DATABASE_INTEGRITY",
+            "the FTS5 candidate index returned duplicate or unsorted identities",
+        )
+    return result
+
+
+def _verified_search_corpus(
+    connection: sqlite3.Connection,
+    tenant_id: TenantId,
+) -> tuple[tuple[LedgerEvent, ...], int, int]:
     note_ids = _load_search_note_ids(connection, tenant_id)
     _verify_search_event_inventory(connection, tenant_id, frozenset(note_ids))
 
-    hits: list[SearchHit] = []
-    live_notes = 0
+    live_events: list[LedgerEvent] = []
     content_bytes = 0
     for note_id in note_ids:
         event = _load_head(connection, tenant_id, note_id)
@@ -793,41 +965,8 @@ def _search_in_transaction(
                 "SEARCH_CORPUS_TOO_LARGE",
                 "the live tenant corpus exceeds the reference search byte bound",
             )
-        live_notes += 1
-        score = score_lexical_content(query, event.content)
-        if score is None:
-            continue
-        hits.append(
-            SearchHit(
-                citation=SearchCitation(
-                    tenant_id=event.tenant_id,
-                    note_id=event.note_id,
-                    revision=event.revision,
-                    event_hash=event.event_hash,
-                ),
-                recorded_at_us=event.recorded_at_us,
-                content=event.content,
-                score=score,
-            )
-        )
-
-    hits.sort(
-        key=lambda hit: (
-            -hit.score.total,
-            -hit.recorded_at_us,
-            hit.citation.note_id,
-        )
-    )
-    return SearchResults(
-        tenant_id=tenant_id,
-        query=query,
-        limit=limit,
-        total_matches=len(hits),
-        scanned_heads=len(note_ids),
-        scanned_live_notes=live_notes,
-        scanned_content_bytes=content_bytes,
-        hits=tuple(hits[:limit]),
-    )
+        live_events.append(event)
+    return tuple(live_events), len(note_ids), content_bytes
 
 
 def _load_search_note_ids(
