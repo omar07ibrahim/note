@@ -17,7 +17,7 @@
   <rect width="1600" height="1212" fill="#f7f9fc"/>
   <text class="title" x="48" y="54">Installed wheel · paging and logical deletion</text>
   <text class="subtitle" x="48" y="86">Steps 6-10: bounded history, JSONL continuation, tombstone, live-read and audit views</text>
-  <text class="provenance" x="48" y="116">source 9ab4115e817d · wheel sha256 c6201ca0ffea3433…</text>
+  <text class="provenance" x="48" y="116">source b2c39608c2dc · wheel sha256 ea81217e0f2d59d1…</text>
   <rect x="48" y="150" width="1504" height="970" rx="14" fill="#111827" stroke="#45566d" stroke-width="2"/>
   <circle cx="72" cy="174" r="7" fill="#ff6978"/>
   <circle cx="96" cy="174" r="7" fill="#f7c65d"/>
