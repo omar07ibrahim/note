@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast
 import binascii
 import hashlib
+import os
 import stat
 import tomllib
 import zlib
@@ -163,6 +164,27 @@ def _assert_adopted_gif_contract(payload: bytes) -> None:  # noqa: PLR0915
 def _document() -> contract.JsonObject:
     raw = (ROOT / "docs/visuals/evidence/installed-wheel-cli.v1.json").read_bytes()
     return contract.decode_evidence_bytes(raw)
+
+
+def test_media_writer_keeps_temporary_private_until_complete(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output_directory = tmp_path / "media"
+    write_modes: list[int] = []
+    real_write = os.write
+
+    def inspected_write(descriptor: int, payload: bytes) -> int:
+        write_modes.append(stat.S_IMODE(os.fstat(descriptor).st_mode))
+        return real_write(descriptor, payload)
+
+    monkeypatch.setattr(os, "write", inspected_write)
+    render_cli_media._atomic_write(output_directory, render_cli_media.PNG_NAME, b"payload")
+
+    output = output_directory / render_cli_media.PNG_NAME
+    assert write_modes and set(write_modes) == {0o600}
+    assert output.read_bytes() == b"payload"
+    assert stat.S_IMODE(output.stat().st_mode) == 0o644
 
 
 def test_media_projection_covers_every_verified_command_channel_and_exit() -> None:

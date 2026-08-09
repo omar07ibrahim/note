@@ -362,7 +362,7 @@ def test_second_connection_never_raw_opens_existing_database(
     def record_open(
         path: str | bytes | os.PathLike[str] | os.PathLike[bytes],
         flags: int,
-        mode: int = 0o777,
+        mode: int = 0o600,
         *,
         dir_fd: int | None = None,
     ) -> int:
@@ -1060,7 +1060,7 @@ def test_low_level_file_and_identity_failures_are_mapped(
     def reject_creation(
         path: str | bytes | os.PathLike[str] | os.PathLike[bytes],
         flags: int,
-        mode: int = 0o777,
+        mode: int = 0o600,
         *,
         dir_fd: int | None = None,
     ) -> int:
@@ -1197,7 +1197,7 @@ def test_stat_only_validation_and_database_creation_fail_closed(
         def reject_database_creation(
             path: str | bytes | os.PathLike[str] | os.PathLike[bytes],
             flags: int,
-            mode: int = 0o777,
+            mode: int = 0o600,
             *,
             dir_fd: int | None = None,
         ) -> int:

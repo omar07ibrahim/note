@@ -462,8 +462,17 @@ def test_capture_writer_is_atomic_and_rejects_symlink_or_hardlink_outputs(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     output = tmp_path / "evidence" / "capture.json"
+    write_modes: list[int] = []
+    real_write = os.write
+
+    def inspected_write(descriptor: int, payload: bytes) -> int:
+        write_modes.append(os.fstat(descriptor).st_mode & 0o777)
+        return real_write(descriptor, payload)
+
     monkeypatch.setattr(capture, "DEFAULT_EVIDENCE_PATH", output)
+    monkeypatch.setattr(os, "write", inspected_write)
     capture._atomic_write(output, b'{"safe":true}\n')
+    assert write_modes and set(write_modes) == {0o600}
     assert output.read_bytes() == b'{"safe":true}\n'
     assert output.stat().st_mode & 0o777 == 0o644
 
@@ -537,7 +546,16 @@ def test_terminal_writer_rejects_noncanonical_name_and_symlink_output(
 
     filename = render_cli_evidence.OUTPUT_NAMES[0]
     output = tmp_path / filename
+    write_modes: list[int] = []
+    real_write = os.write
+
+    def inspected_write(descriptor: int, payload: bytes) -> int:
+        write_modes.append(os.fstat(descriptor).st_mode & 0o777)
+        return real_write(descriptor, payload)
+
+    monkeypatch.setattr(os, "write", inspected_write)
     render_cli_evidence._atomic_write(filename, b"<svg/>")
+    assert write_modes and set(write_modes) == {0o600}
     assert output.read_bytes() == b"<svg/>"
     assert output.stat().st_mode & 0o777 == 0o644
     output.unlink()

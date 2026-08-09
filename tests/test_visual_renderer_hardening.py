@@ -656,6 +656,7 @@ def test_output_write_is_same_directory_atomic_and_handles_short_writes(
     real_replace = os.replace
     real_write = os.write
     observations: list[tuple[int, int]] = []
+    write_modes: list[int] = []
     write_calls = 0
 
     def inspected_replace(
@@ -679,6 +680,7 @@ def test_output_write_is_same_directory_atomic_and_handles_short_writes(
     def short_write(file_fd: int, data: bytes) -> int:
         nonlocal write_calls
         write_calls += 1
+        write_modes.append(stat.S_IMODE(os.fstat(file_fd).st_mode))
         return real_write(file_fd, data[:7])
 
     monkeypatch.setattr(os, "replace", inspected_replace)
@@ -687,6 +689,7 @@ def test_output_write_is_same_directory_atomic_and_handles_short_writes(
 
     assert target.read_bytes() == payload
     assert write_calls > 1
+    assert write_modes and set(write_modes) == {0o600}
     assert len(observations) == 1
     mode, link_count = observations[0]
     assert stat.S_ISREG(mode)

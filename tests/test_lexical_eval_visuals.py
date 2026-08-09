@@ -483,10 +483,12 @@ def test_atomic_write_handles_short_writes_and_leaves_no_temporary(
     payload = b"<svg>" + b"x" * 128 + b"</svg>"
     real_write = os.write
     calls = 0
+    write_modes: list[int] = []
 
     def short_write(descriptor: int, data: bytes) -> int:
         nonlocal calls
         calls += 1
+        write_modes.append(os.fstat(descriptor).st_mode & 0o777)
         return real_write(descriptor, data[:7])
 
     monkeypatch.setattr(renderer, "OUTPUT_DIRECTORY", tmp_path)
@@ -494,6 +496,7 @@ def test_atomic_write_handles_short_writes_and_leaves_no_temporary(
     renderer._atomic_write(filename, payload)
 
     assert calls > 1
+    assert write_modes and set(write_modes) == {0o600}
     assert target.read_bytes() == payload
     assert not [path for path in tmp_path.iterdir() if path.name.startswith(f".{filename}.tmp-")]
 
@@ -526,7 +529,7 @@ def test_atomic_write_rejects_temporary_name_substitution(
             descriptor = os.open(
                 path,
                 os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC,
-                0o644,
+                0o600,
                 dir_fd=dir_fd,
             )
             try:
@@ -569,7 +572,7 @@ def test_atomic_write_rejects_destination_swap_before_replace(
                 descriptor = os.open(
                     path,
                     os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC,
-                    0o644,
+                    0o600,
                     dir_fd=dir_fd,
                 )
                 try:
@@ -616,7 +619,7 @@ def test_atomic_write_verifies_the_final_installed_identity(
         descriptor = os.open(
             destination,
             os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC,
-            0o644,
+            0o600,
             dir_fd=dst_dir_fd,
         )
         try:
