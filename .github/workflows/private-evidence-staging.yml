@@ -1,0 +1,163 @@
+name: Private evidence staging
+
+on:
+  push:
+    branches:
+      - agent/private-evidence-temporaries
+
+permissions:
+  contents: read
+
+concurrency:
+  group: private-evidence-staging
+  cancel-in-progress: true
+
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PIP_NO_INPUT: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
+  PYTHONHASHSEED: "0"
+  PYTHONUTF8: "1"
+
+jobs:
+  stage:
+    name: Canonical private-write source and evidence
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out the exact branch head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up exact evidence Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: 3.12.3
+          cache: pip
+          cache-dependency-path: |
+            requirements-dev.lock
+            requirements-visuals.lock
+
+      - name: Install the hash-locked review toolchain
+        run: |
+          python -m pip install --require-hashes -r requirements-dev.lock
+          python -m pip install --no-deps --no-build-isolation --editable .
+          python -m pip check
+
+      - name: Stage canonical formatting
+        id: format
+        run: |
+          files=(
+            tools/capture_cli_evidence.py
+            tools/render_cli_evidence.py
+            tools/render_cli_media.py
+            tools/render_lexical_eval_visuals.py
+            tools/render_visuals.py
+            tests/test_cli_evidence_hardening.py
+            tests/test_cli_media.py
+            tests/test_lexical_eval_visuals.py
+            tests/test_storage_foundation.py
+            tests/test_visual_renderer_hardening.py
+          )
+          python -m ruff format "${files[@]}"
+          python -m ruff check .
+          git diff --check
+          if git diff --quiet -- "${files[@]}"
+          then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            destination="$RUNNER_TEMP/formatted-source"
+            for path in "${files[@]}"
+            do
+              install -D -m 0644 "$path" "$destination/$path"
+            done
+          fi
+
+      - name: Upload canonical source
+        if: steps.format.outputs.changed == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: private-write-formatted-source-${{ github.run_id }}
+          path: ${{ runner.temp }}/formatted-source/
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+          include-hidden-files: false
+
+      - name: Install the exact visual runtime
+        if: steps.format.outputs.changed == 'false'
+        run: |
+          mkdir "$RUNNER_TEMP/visual-wheels"
+          python -m pip download \
+            --dest "$RUNNER_TEMP/visual-wheels" \
+            --no-deps \
+            --only-binary=:all: \
+            --require-hashes \
+            -r requirements-visuals.lock
+          expected="pillow-12.3.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl"
+          actual="$(find "$RUNNER_TEMP/visual-wheels" -mindepth 1 -maxdepth 1 -type f -printf '%f\n')"
+          test "$actual" = "$expected"
+          printf '%s  %s\n' \
+            "78cb2c6865a35ab8ff8b75fd122f6033b92a62c82801110e48ddd6c936a45d91" \
+            "$RUNNER_TEMP/visual-wheels/$expected" \
+            | sha256sum --check --strict -
+          python -m pip install \
+            --no-index \
+            --no-deps \
+            --find-links "$RUNNER_TEMP/visual-wheels" \
+            --only-binary=:all: \
+            --require-hashes \
+            -r requirements-visuals.lock
+          python -m pip check
+
+      - name: Recapture source-bound installed-wheel evidence
+        if: steps.format.outputs.changed == 'false'
+        run: |
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          python tools/capture_cli_evidence.py --source-commit "$GITHUB_SHA" --write
+          python tools/render_cli_evidence.py --write
+          python tools/render_visuals.py --check
+          python tools/render_lexical_eval_visuals.py --check
+          actual="$(git diff --name-only | LC_ALL=C sort)"
+          expected="$(
+            printf '%s\n' \
+              docs/visuals/evidence/installed-wheel-cli.v1.json \
+              docs/visuals/installed-wheel-history-tombstone.svg \
+              docs/visuals/installed-wheel-write-replay.svg
+          )"
+          test "$actual" = "$expected"
+          test -z "$(git diff --cached --name-only)"
+          test -z "$(git ls-files --others --exclude-standard)"
+
+      - name: Render and verify the installed-wheel media bundle
+        if: steps.format.outputs.changed == 'false'
+        run: |
+          output="$RUNNER_TEMP/installed-wheel-media"
+          mkdir "$output"
+          python tools/render_cli_media.py \
+            --write \
+            --evidence-path docs/visuals/evidence/installed-wheel-cli.v1.json \
+            --svg-directory docs/visuals \
+            --output-directory "$output"
+          python tools/render_cli_media.py \
+            --check \
+            --evidence-path docs/visuals/evidence/installed-wheel-cli.v1.json \
+            --svg-directory docs/visuals \
+            --output-directory "$output"
+          test "$(find "$output" -mindepth 1 -maxdepth 1 -type f | wc -l)" -eq 6
+          test -z "$(find "$output" -mindepth 1 -maxdepth 1 ! -type f -print -quit)"
+
+      - name: Upload reviewed candidate evidence
+        if: steps.format.outputs.changed == 'false'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: private-evidence-bundle-${{ github.run_id }}
+          path: ${{ runner.temp }}/installed-wheel-media/
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+          include-hidden-files: false
