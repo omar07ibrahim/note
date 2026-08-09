@@ -167,7 +167,6 @@ class SearchResults:
     hits: tuple[SearchHit, ...]
 
 
-
 @dataclass(frozen=True, slots=True)
 class Fts5CandidateAudit:
     """One rebuilt TEMP FTS5 candidate set proven against the reference oracle."""

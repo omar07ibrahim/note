@@ -82,9 +82,11 @@ def test_fts5_audit_matches_reference_and_is_tenant_scoped(
             command_id=command_id(1),
             content=NoteContent("Alpha OR", "other tenant"),
         )
-        main_cookie = cast(sqlite3.Connection, ledger._connection).execute(
-            "PRAGMA schema_version"
-        ).fetchone()[0]
+        main_cookie = (
+            cast(sqlite3.Connection, ledger._connection)
+            .execute("PRAGMA schema_version")
+            .fetchone()[0]
+        )
 
         audit = ledger.audit_fts5_candidates(tenant_id=TENANT_A, query="ALPHA or")
         assert isinstance(audit, Fts5CandidateAudit)
@@ -158,9 +160,10 @@ def test_fts5_audit_uses_current_heads_and_excludes_tombstones(
 
         current = ledger.audit_fts5_candidates(tenant_id=TENANT_A, query="current")
         assert current.candidate_note_ids == (revised.note_id,)
-        assert ledger.audit_fts5_candidates(
-            tenant_id=TENANT_A, query="obsolete"
-        ).candidate_note_ids == ()
+        assert (
+            ledger.audit_fts5_candidates(tenant_id=TENANT_A, query="obsolete").candidate_note_ids
+            == ()
+        )
         alpha = ledger.audit_fts5_candidates(tenant_id=TENANT_A, query="alpha")
         assert alpha.scanned_heads == 2
         assert alpha.indexed_live_notes == 1
@@ -190,9 +193,10 @@ def test_fts5_audit_fails_closed_on_candidate_drift_and_recovers(
         with pytest.raises(LedgerStorageError) as captured:
             ledger.audit_fts5_candidates(tenant_id=TENANT_A, query="alpha")
         assert captured.value.code == "FTS5_CANDIDATE_DRIFT"
-        assert ledger.search_notes(tenant_id=TENANT_A, query="alpha").hits[
-            0
-        ].citation.note_id == event.note_id
+        assert (
+            ledger.search_notes(tenant_id=TENANT_A, query="alpha").hits[0].citation.note_id
+            == event.note_id
+        )
 
 
 def test_fts5_sqlite_error_is_sanitized_and_connection_recovers(
