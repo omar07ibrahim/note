@@ -49,10 +49,10 @@ jobs:
       - name: Stage canonical formatting
         id: format
         run: |
-          python -m ruff format             src/recall_ledger/_ledger_operations.py             src/recall_ledger/storage.py             tests/test_fts5_audit.py
+          python -m ruff format             src/recall_ledger/_ledger_operations.py             src/recall_ledger/storage.py             tests/test_fts5_audit.py             tests/test_cli_media.py
           python -m ruff check .
           git diff --check
-          if git diff --quiet --             src/recall_ledger/_ledger_operations.py             src/recall_ledger/storage.py             tests/test_fts5_audit.py
+          if git diff --quiet --             src/recall_ledger/_ledger_operations.py             src/recall_ledger/storage.py             tests/test_fts5_audit.py             tests/test_cli_media.py
           then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
@@ -61,6 +61,7 @@ jobs:
             install -D -m 0644               src/recall_ledger/_ledger_operations.py               "$destination/src/recall_ledger/_ledger_operations.py"
             install -D -m 0644               src/recall_ledger/storage.py               "$destination/src/recall_ledger/storage.py"
             install -D -m 0644               tests/test_fts5_audit.py               "$destination/tests/test_fts5_audit.py"
+            install -D -m 0644               tests/test_cli_media.py               "$destination/tests/test_cli_media.py"
           fi
 
       - name: Upload canonical source
