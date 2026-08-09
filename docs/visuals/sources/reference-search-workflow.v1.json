@@ -99,7 +99,7 @@
       "path": "src/recall_ledger/_ledger_operations.py",
       "target": "_search_in_transaction",
       "match": "contains",
-      "expected": "score = score_lexical_content(query, event.content)",
+      "expected": "score = score_lexical_content(query, content)",
       "claim": "Each validated live head is passed to the production lexical scorer."
     },
     {
