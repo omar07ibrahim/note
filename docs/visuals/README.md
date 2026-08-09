@@ -104,7 +104,9 @@ one deferred SQLite snapshot, complete bounded tenant-head inventory, event
 orphan proof, canonical head reconciliation, live-content accounting, full-set
 scoring, sorting, and only then top-K with citations. Every stage binds to a
 named implementation symbol or the storage contract. It does not represent an
-authorization check, persistent index, signature, or measured latency.
+authorization check, persistent index, signature, or measured latency. The
+same verified-corpus implementation is now reused by the ephemeral FTS5
+candidate audit; this figure intentionally remains the reference-oracle path.
 
 ### Implemented architecture
 

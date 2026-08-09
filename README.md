@@ -8,15 +8,14 @@ measured hybrid retrieval.
 
 It is not currently a Telegram bot or a generic CRUD application.
 
-> **Phase 3c — frozen lexical conformance evidence.** The current tree combines bounded,
-> canonical, tenant-scoped note events with a versioned, locked SQLite
-> boundary, transactional create/revise/tombstone/head/history operations, and
-> a deterministic tenant-local search oracle over every verified current head.
-> The installed `recall-ledger` console script exposes that reference path as
-> canonical JSON or JSONL. A frozen synthetic suite now reproduces the
-> production scorer's exact outcomes and explicitly records its known synonym
-> miss. No authorization adapter, persistent retrieval index, semantic-search
-> benchmark, model integration, or user interface is claimed yet.
+> **Phase 3d — fail-closed FTS5 candidate calibration.** The current tree combines
+> canonical tenant-scoped events, a locked SQLite boundary, and a deterministic
+> search oracle over every verified current head. A separate public audit now
+> rebuilds an ephemeral tenant-local FTS5 candidate table from that same
+> verified snapshot and requires exact candidate-set agreement with the oracle.
+> The frozen lexical suite still records the scorer's known synonym miss. No
+> authorization adapter, persistent retrieval index, serving-speed claim,
+> semantic-search benchmark, model integration, or user interface is claimed.
 
 The storage slice currently supports Linux/POSIX deployments only. Its
 `fcntl`, `flock`, `O_DIRECTORY`, `O_NOFOLLOW`, and fork-safety contract is
@@ -42,9 +41,10 @@ Development will proceed in reviewable layers:
 1. **Tenant-isolated event log** — versioned note events, immutable ownership,
    optimistic concurrency, deterministic projections, SQLite migrations, and
    tests proving that cross-tenant reads and writes fail closed.
-2. **Rebuildable retrieval** — the normalization, tokenization, exact scoring,
-   bounded reference scan, and citation contracts are implemented first;
-   source-bound FTS5 acceleration and full index reconstruction come next.
+2. **Rebuildable retrieval** — normalization, tokenization, exact scoring,
+   bounded reference scan, citations, and a source-bound TEMP FTS5 equivalence
+   audit are implemented. A durable projection, crash-safe full reconstruction,
+   and measured acceleration remain future work.
 3. **Hybrid search laboratory** — a provider boundary for optional local
    embeddings, reciprocal-rank fusion, diversity controls, and frozen
    lexical/semantic/adversarial evaluation slices. The dependency-free lexical
@@ -103,7 +103,40 @@ tombstones and off-query heads for integrity, caps the complete inventory at
 or corruption. Only decoded live heads are scored. Hits sort by integer score,
 current-head time, and note ID; each carries the current revision and event
 hash as a citation. The result also exposes exact scanned-head, live-note, and
-content-byte counts. This reference path intentionally has no FTS5 table yet.
+content-byte counts. The reference search path owns no FTS5 state.
+
+`SQLiteLedger.audit_fts5_candidates` reuses the complete verified tenant
+snapshot, encodes every live head into inert lowercase ASCII token streams, and
+builds a transaction-local TEMP FTS5 table with the `ascii` tokenizer,
+`detail=none`, and `columnsize=0`. It compares the complete ordered candidate
+identity set with a separately scored oracle set, drops the TEMP table, and
+returns the SQLite runtime plus scan counts only on exact agreement. Drift,
+missing FTS5 support, integrity failure, or uncertain transaction state fails
+closed. This is a calibration gate, not a persistent index or a latency result;
+`search_notes` remains the serving correctness oracle.
+
+```mermaid
+flowchart LR
+    Q[Raw tenant query] --> C[Compile versioned lexical terms]
+    C --> V[Verify complete bounded tenant corpus]
+    V --> O[Score every live head with oracle]
+    V --> T[Encode live heads into TEMP FTS5]
+    T --> M[Run quoted all-terms MATCH]
+    O --> E{Ordered identity sets equal?}
+    M --> E
+    E -->|yes| R[Drop TEMP table and return audit report]
+    E -->|no| F[Fail closed with FTS5_CANDIDATE_DRIFT]
+```
+
+```python
+audit = ledger.audit_fts5_candidates(
+    tenant_id=tenant_id,
+    query="portfolio evidence",
+)
+assert audit.candidate_note_ids == audit.oracle_match_note_ids
+```
+
+The write path remains independently transactional:
 
 ```mermaid
 flowchart LR

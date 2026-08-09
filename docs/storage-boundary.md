@@ -2,9 +2,9 @@
 
 RecallLedger's durable-storage boundary defines how a local SQLite database is
 identified, migrated, opened, checked, and updated through atomic note
-transitions. It exposes tenant-scoped head/history reads and a bounded lexical
-reference search, but no persistent retrieval index, projection rebuild,
-network service, or authorization adapter.
+transitions. It exposes tenant-scoped head/history reads, a bounded lexical
+reference search, and an ephemeral FTS5 candidate audit, but no persistent
+retrieval index, projection rebuild, network service, or authorization adapter.
 
 This module currently supports Linux/POSIX only. It depends on `fcntl`,
 `flock`, `O_DIRECTORY`, `O_NOFOLLOW`, and `register_at_fork`; Windows is not a
@@ -137,11 +137,22 @@ ranking. Current-head reconciliation is not a full replay of every retained
 chain. The orphan keyset proof performs at most one indexed seek per distinct
 event note plus a terminal seek, rather than scanning every revision.
 
-A future FTS5 projection may reduce candidate work, but it must persist the
-lexical contract version and Unicode profile, rebuild or fail closed on a
-profile mismatch, and pass every candidate through this exact scorer. It must
-remain observationally identical to the reference engine for hits, scores,
-ordering, revision replacement, tombstones, and tenant-stuffing invariance.
+`SQLiteLedger.audit_fts5_candidates` is the first index-calibration boundary.
+Inside one deferred transaction it reuses the fully verified live corpus,
+rebuilds a TEMP FTS5 table from inert encoded title/body/tag token streams, runs
+the compiled quoted all-terms expression, and compares the complete ordered
+candidate identities with a separately scored oracle set. The table uses the
+`ascii` tokenizer with `detail=none` and `columnsize=0`, is dropped before
+the transaction completes, and never alters the durable schema. Candidate
+drift raises `FTS5_CANDIDATE_DRIFT`; unavailable FTS5 or SQLite failures are
+sanitized by the existing storage settlement boundary.
+
+This audit is not serving acceleration, a persistent projection, a benchmark,
+or a compatibility claim for arbitrary SQLite builds. A future durable index
+must persist the lexical contract version and Unicode profile, rebuild or fail
+closed on mismatch, and pass candidates through the exact scorer. It must
+remain observationally identical for hits, scores, ordering, revision
+replacement, tombstones, and tenant-stuffing invariance.
 
 The installed operator CLI exposes this exact path through `search
 --query-file PATH|- [--limit COUNT] [--jsonl]`. Query bytes come from a bounded
