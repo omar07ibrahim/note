@@ -200,13 +200,14 @@ def test_fts5_sqlite_error_is_sanitized_and_connection_recovers(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     with SQLiteLedger.open(secure_directory(tmp_path)) as ledger:
+        injected = sqlite3.OperationalError("host detail must not escape")
 
         def fail(
             _connection: sqlite3.Connection,
             _query: object,
             _events: object,
         ) -> tuple[NoteId, ...]:
-            raise sqlite3.OperationalError("host detail must not escape")
+            raise injected
 
         monkeypatch.setattr(operations_module, "_fts5_candidate_note_ids", fail)
         with pytest.raises(LedgerStorageError) as captured:

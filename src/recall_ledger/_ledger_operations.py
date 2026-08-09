@@ -26,12 +26,12 @@ from .events import (
 )
 from .retrieval import LexicalQuery, lexical_token_streams, score_lexical_content
 from .storage import (
+    FTS5_CANDIDATE_SCHEMA_VERSION,
+    FTS5_CANDIDATE_TOKENIZER,
     MAX_PAGE_SIZE,
     MAX_SEARCH_HEADS,
     MAX_SEARCH_LIMIT,
     MAX_SEARCH_LIVE_CONTENT_BYTES,
-    FTS5_CANDIDATE_SCHEMA_VERSION,
-    FTS5_CANDIDATE_TOKENIZER,
     Fts5CandidateAudit,
     HistoryPage,
     LedgerStorageError,
