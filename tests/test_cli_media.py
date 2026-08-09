@@ -19,33 +19,33 @@ ADOPTION_PATH = ROOT / "docs/visuals/evidence/installed-wheel-media.adoption.jso
 EXPECTED_ADOPTED_MEDIA = {
     "installed-wheel-cli.png": (
         "docs/visuals/installed-wheel-cli.png",
-        267_370,
-        "fb93a728a68908018ba03484ba32a5930140eb0d02a4195d3a0f5202fd6ed520",
+        267_526,
+        "5791a8cdd59287b3df61b4aa5e5e023f98b00bc049e2d45beccd94f2782580eb",
     ),
     "installed-wheel-cli.v1.json": (
         "docs/visuals/evidence/installed-wheel-cli.v1.json",
         13_603,
-        "0caeb11afe1eb142faa53ffaea03277ea4fc8de795bc3b998082a5491bd73458",
+        "cb87a1d586a784a44d48ede263c198876c29bf586585fb7b0464b9421ac45c88",
     ),
     "installed-wheel-history-tombstone.svg": (
         "docs/visuals/installed-wheel-history-tombstone.svg",
         7_412,
-        "5cedc97229c097dd19ac723fe4babf3ed7b9790d13103d121f0d73bd9a2d7b4a",
+        "e0b84541745096923536a7933fe0d573d812c3fba6a26b886fe912d02d4391c6",
     ),
     "installed-wheel-media.manifest.json": (
         "docs/visuals/installed-wheel-media.manifest.json",
         3_785,
-        "b728de9873452a42042d09d3a7b4acf05afaf5ba58ce4b20a739651b81f1643c",
+        "672e594a227e7049cfcbf11787c778cbce48b0dc5922e6afb53f7686a3c1d290",
     ),
     "installed-wheel-workflow.gif": (
         "docs/visuals/installed-wheel-workflow.gif",
-        222_131,
-        "a67ec84f163ba755847345db0176dda415f90a6b813e9dc72a19c5e562704e82",
+        222_249,
+        "f3333c551d42b68094ec15aa804b17457c9a5f1672d248c1c80caec9fe278185",
     ),
     "installed-wheel-write-replay.svg": (
         "docs/visuals/installed-wheel-write-replay.svg",
         7_642,
-        "2d0e75d1355dec0830bc0391d3e3de9deef2f2301c37815ac10991d16af369ae",
+        "975520ab728c989023c1236c962f81c85669c60e7b190ce69bf35d7099a7e9f2",
     ),
 }
 
@@ -282,20 +282,20 @@ def test_adopted_media_matches_reviewed_hosted_artifact_and_generated_manifest()
     )
     source = cast(contract.JsonObject, adoption["source"])
     assert source == {
-        "git_commit": "f48686bc63ff4654c61af88e6eb2429934efa23e",
-        "git_tree": "7535ca3695ac17797ab24c51f58fdaa309bbaca1",
-        "media_manifest_sha256": "b728de9873452a42042d09d3a7b4acf05afaf5ba58ce4b20a739651b81f1643c",
+        "git_commit": "9ab4115e817deab4c843aa4d1680ef1cd63a9503",
+        "git_tree": "bbc8dcc4d4e3f8456b469382902edd731e36ee56",
+        "media_manifest_sha256": "672e594a227e7049cfcbf11787c778cbce48b0dc5922e6afb53f7686a3c1d290",
     }
     assert adoption["hosted_artifact"] == {
-        "archive_digest": "sha256:aa4486007d1a77480dd045481752eec094eb9090a1ecfb73f7ef80f47dab1bad",
-        "artifact_id": 9_026_054_149,
-        "created_at": "2026-08-08T18:42:33Z",
-        "expires_at": "2026-08-09T18:42:33Z",
-        "name": "installed-wheel-media-31272523249",
+        "archive_digest": "sha256:bb6c2f45693392a4febb252c22856e81ec097d429e7a8378eed1474dc844878d",
+        "artifact_id": 9_038_918_220,
+        "created_at": "2026-08-09T13:44:33Z",
+        "expires_at": "2026-08-10T13:44:32Z",
+        "name": "fts5-installed-wheel-evidence-31316561987",
         "retention_days": 1,
-        "run_id": 31_272_523_249,
-        "size_bytes": 522_881,
-        "workflow_job_id": 93_140_876_154,
+        "run_id": 31_316_561_987,
+        "size_bytes": 523_155,
+        "workflow_job_id": 93_252_660_174,
     }
     review = cast(contract.JsonObject, adoption["review"])
     assert review["independence"] == "A second agent reviewed the hosted archive before adoption."
