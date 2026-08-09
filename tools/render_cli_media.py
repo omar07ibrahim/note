@@ -167,7 +167,7 @@ def _atomic_write(output_directory: Path, filename: str, payload: bytes) -> None
             existing = None
         if existing is not None and (not stat.S_ISREG(existing.st_mode) or existing.st_nlink != 1):
             _fail("media output is not one regular single-link file")
-        descriptor = os.open(temporary_name, _WRITE_FLAGS, 0o644, dir_fd=directory)
+        descriptor = os.open(temporary_name, _WRITE_FLAGS, 0o600, dir_fd=directory)
         offset = 0
         while offset < len(payload):
             written = os.write(descriptor, payload[offset:])

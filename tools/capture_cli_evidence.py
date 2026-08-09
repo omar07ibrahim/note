@@ -1520,7 +1520,7 @@ def _atomic_write(path: Path, payload: bytes) -> None:
         descriptor = os.open(
             temporary_name,
             _WRITE_FLAGS,
-            0o644,
+            0o600,
             dir_fd=directory,
         )
         written = 0

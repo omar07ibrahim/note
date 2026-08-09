@@ -1702,15 +1702,15 @@ def _atomic_write_output(
         temporary_fd = os.open(
             temporary_name,
             _REGULAR_WRITE_FLAGS,
-            0o644,
+            0o600,
             dir_fd=directory_fd,
         )
         temporary_exists = True
         metadata = os.fstat(temporary_fd)
         if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
             _fail("rendered output temporary must be a single-link regular file")
-        os.fchmod(temporary_fd, 0o644)
         _write_all(temporary_fd, payload)
+        os.fchmod(temporary_fd, 0o644)
         os.fsync(temporary_fd)
         written_metadata = os.fstat(temporary_fd)
         if not stat.S_ISREG(written_metadata.st_mode) or written_metadata.st_nlink != 1:
