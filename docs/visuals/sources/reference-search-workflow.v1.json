@@ -70,7 +70,7 @@
       "id": "tombstone-exclusion",
       "kind": "python",
       "path": "src/recall_ledger/_ledger_operations.py",
-      "target": "_search_in_transaction",
+      "target": "_verified_search_corpus",
       "match": "contains",
       "expected": "if event.kind is EventKind.TOMBSTONED:",
       "claim": "The live-content path has an explicit branch for a verified tombstone head."
@@ -79,7 +79,7 @@
       "id": "utf8-content-accounting",
       "kind": "python",
       "path": "src/recall_ledger/_ledger_operations.py",
-      "target": "_search_in_transaction",
+      "target": "_verified_search_corpus",
       "match": "contains",
       "expected": "content_bytes += len(title.encode(\"utf-8\")) + len(body.encode(\"utf-8\"))",
       "claim": "Title and body lengths enter the cumulative live-content counter as UTF-8 bytes."
@@ -88,7 +88,7 @@
       "id": "live-content-bound",
       "kind": "python",
       "path": "src/recall_ledger/_ledger_operations.py",
-      "target": "_search_in_transaction",
+      "target": "_verified_search_corpus",
       "match": "contains",
       "expected": "if content_bytes > MAX_SEARCH_LIVE_CONTENT_BYTES:",
       "claim": "The cumulative live-content byte counter has an explicit configured upper-bound branch."
