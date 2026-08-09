@@ -257,6 +257,7 @@ def test_candidate_identity_validation_accepts_exact_sorted_ids() -> None:
     values = (note_id(1), note_id(2))
     assert operations_module._validated_fts5_candidate_ids(values) == values
 
+
 def test_fts5_audit_matches_reference_for_unicode_and_operator_terms(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -318,9 +319,7 @@ def test_fts5_audit_matches_reference_for_unicode_and_operator_terms(
         for query, expected in cases:
             audit = ledger.audit_fts5_candidates(tenant_id=TENANT_A, query=query)
             reference = ledger.search_notes(tenant_id=TENANT_A, query=query)
-            reference_ids = tuple(
-                sorted(hit.citation.note_id for hit in reference.hits)
-            )
+            reference_ids = tuple(sorted(hit.citation.note_id for hit in reference.hits))
             assert audit.oracle_match_note_ids == expected
             assert audit.candidate_note_ids == expected
             assert reference_ids == expected
