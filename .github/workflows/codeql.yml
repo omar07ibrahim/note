@@ -26,6 +26,7 @@ jobs:
       fail-fast: false
       matrix:
         language:
+          - actions
           - python
     steps:
       - name: Check out the immutable event revision
